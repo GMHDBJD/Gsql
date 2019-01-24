@@ -4,6 +4,7 @@
 #include "syntax_tree.h"
 #include "query_optimizer.h"
 #include "gdbe.h"
+#include "buffer_pool.h"
 
 class BackEnd{
     public:
@@ -16,6 +17,7 @@ class BackEnd{
     private:
         QueryOptimizer query_optimizer_;
         GDBE gdbe_;
+        BufferPool buffer_pool_;
         SyntaxTree& syntax_tree_;
         
 };
