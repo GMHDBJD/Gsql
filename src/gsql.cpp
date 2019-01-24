@@ -1,13 +1,14 @@
 #include "gsql.h"
+#include <utility>
 
-void Gsql::run()
+void Gsql::Run()
 {
     std::string input;
     SyntaxTree syntax_tree;
 
-    shell.GetInput(&input);
+    shell_.GetInput(&input);
 
-    front_end.process(input,&syntax_tree);
+    front_end_.Process(input,&syntax_tree);
 
-    back_end.exec(syntax_tree);
+    back_end_.Start(std::move(syntax_tree));
 }

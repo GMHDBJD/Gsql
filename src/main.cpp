@@ -3,5 +3,5 @@
 int main()
 {
     Gsql gsql;
-    gsql.run();
+    gsql.Run();
 }

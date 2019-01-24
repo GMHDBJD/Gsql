@@ -12,10 +12,10 @@ class FrontEnd{
         FrontEnd(const FrontEnd&)=delete;
         FrontEnd(FrontEnd&&)=delete;
         FrontEnd& operator=(FrontEnd)=delete;
-        int process(const std::string&,SyntaxTree*);
+        int Process(const std::string&,SyntaxTree*);
     private:
-        Parser parser;
-        Lexer lexer;
+        Parser parser_;
+        Lexer lexer_;
 };
 
 #endif

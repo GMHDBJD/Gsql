@@ -2,6 +2,8 @@
 #define BACKEND_H_
 
 #include "syntax_tree.h"
+#include "query_optimizer.h"
+#include "gdbe.h"
 
 class BackEnd{
     public:
@@ -10,7 +12,12 @@ class BackEnd{
         BackEnd(const BackEnd&)=delete;
         BackEnd(BackEnd&&)=delete;
         BackEnd& operator=(BackEnd)=delete;
-        int exec(SyntaxTree syntax_tree);
+        int Start(SyntaxTree&&);
+    private:
+        QueryOptimizer query_optimizer_;
+        GDBE gdbe_;
+        SyntaxTree& syntax_tree_;
+        
 };
 
 #endif

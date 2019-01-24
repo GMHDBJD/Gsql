@@ -13,11 +13,11 @@ class Gsql
         Gsql(Gsql&&) noexcept =delete;
         Gsql& operator=(Gsql)=delete;
         ~Gsql()=default;
-        void run();
+        void Run();
     private:
-        Shell shell;
-        FrontEnd front_end;
-        BackEnd back_end;
+        Shell shell_;
+        FrontEnd front_end_;
+        BackEnd back_end_;
 };
 
 #endif
