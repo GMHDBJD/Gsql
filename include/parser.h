@@ -11,6 +11,6 @@ class Parser{
         Parser(Parser&&)=delete;
         Parser& operator=(Parser)=delete;
         ~Parser()=default;
-        int parse(const std::queue<Token>&, SyntaxTree*);
+        int parse(std::queue<Token>&&, SyntaxTree*);
 };
 #endif

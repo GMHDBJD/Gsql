@@ -12,7 +12,7 @@ class Lexer{
         Lexer(Lexer&&)=delete;
         Lexer& operator=(Lexer)=delete;
         ~Lexer()=default;
-        int Lex(const std::string&,std::queue<Token>*);
+        int lex(const std::string&,std::queue<Token>*);
 };
 
 #endif

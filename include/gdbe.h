@@ -10,7 +10,7 @@ class GDBE{
         GDBE(const GDBE&)=delete;
         GDBE(GDBE&&)=delete;
         GDBE& operator=(GDBE)=delete;
-        void Exec(const SyntaxTree&);
+        void exec(const SyntaxTree&);
     private:
 };
 
