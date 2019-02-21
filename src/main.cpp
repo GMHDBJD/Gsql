@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "parser.h"
 #include "lexer.h"
+#include "error.h"
 #include "gsql.h"
 
 int main()
@@ -17,14 +18,20 @@ int main()
 
     while (true)
     {
-        shell.getInput(&str);
-        lexer.lex(str, &token_queue);
-        parser.parse(std::move(token_queue), &syntax_tree);
-        gsql.run(std::move(syntax_tree));
-        while(gsql.getResult(&result))
+        try
         {
-            shell.showResult(result);
-            result.clear();
+            str = shell.getInput();
+            token_queue = lexer.lex(str);
+            syntax_tree = parser.parse(std::move(token_queue));
+            gsql.run(std::move(syntax_tree));
+            while (result = gsql.getResult())
+            {
+                shell.showResult(result);
+            }
+        }
+        catch (const Error &error)
+        {
+            shell.showError(error);
         }
     }
 

@@ -7,10 +7,11 @@ class Result{
     public:
         Result()=default;
         ~Result()=default;
-        Result(const Result&)=delete;
-        Result(Result&&)=delete;
-        Result& operator=(Result)=delete;
+        Result(const Result&);
+        Result(Result&&);
+        Result& operator=(Result);
         int clear();
+        operator bool();
     private:
 };
 

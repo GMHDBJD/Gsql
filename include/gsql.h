@@ -16,7 +16,7 @@ class Gsql
     Gsql &operator=(Gsql) = delete;
     ~Gsql() = default;
     int run(SyntaxTree &&);
-    int getResult(Result*);
+    Result getResult();
 
   private:
     QueryOptimizer query_optimizer_;

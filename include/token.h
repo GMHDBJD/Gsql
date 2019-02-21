@@ -28,6 +28,14 @@ enum TokenType
     kJoin,
     kWhere,
     kUse,
+    kLimit,
+    kAdd,
+    kColumn,
+    kShow,
+    kOn,
+    kKey,
+    kDatabases,
+    kTables,
 
     kAnd,
     kNot,
@@ -42,25 +50,44 @@ enum TokenType
     kMinus,
     kMultiply,
     kDivide,
+    kMod,
     kLeftParenthesis,
     kRightParenthesis,
+    kShiftLeft,
+    kShiftRight,
+    kBitsExclusiveOr,
     kComma,
     kSemicolon,
     kBitsAnd,
     kBitsOr,
+    kBitsNot,
     kNotEqual,
 
     kNum,
-    kString
-};
+    kString,
 
+    kNone,
+
+    kColumns,
+    kNames,
+    kName,
+    kNotNull,
+    kValue,
+    kExpr,
+    kExprs,
+    kJoins
+};
 
 struct Token
 {
-    Token(TokenType t, const std::string &s = "", int n = 0) : token_type(t), str(s), num(n){};
+    Token(TokenType t = kNone, const std::string &s = "", int n = 0) : token_type(t), str(s), num(n){};
     TokenType token_type;
     int num;
     std::string str;
+    operator bool()
+    {
+        return token_type != kNone;
+    }
 };
 
 #endif

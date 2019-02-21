@@ -12,8 +12,9 @@ class Shell
     Shell(const Shell &) = delete;
     Shell(Shell &&) = delete;
     Shell &operator=(Shell) = delete;
-    int getInput(std::string *);
-    int showResult(const Result &);
+    std::string getInput();
+    void showResult(const Result &);
+    void showError(const Error&);
 };
 
 #endif

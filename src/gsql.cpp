@@ -5,7 +5,7 @@ int Gsql::run(SyntaxTree && syntax_tree)
 
 }
 
-int Gsql::getResult(Result* result)
+Result Gsql::getResult()
 {
 
 }
