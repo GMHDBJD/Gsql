@@ -3,7 +3,8 @@
 int main()
 {
     unittest::Test test;
-    test.lexerTest();
-    test.parserTest();
+    test.shellTest();
+   // test.lexerTest();
+    //test.parserTest();
     return 0;
 }

@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "parser.h"
+#include "shell.h"
 #include <iostream>
 #include <fstream>
 #include <queue>
@@ -32,6 +33,14 @@ class Test
         "DROP DATABASE gsql;"};
 
   public:
+    void shellTest()
+    {
+        Shell shell;
+        while (true)
+        {
+            std::cout<<shell.getInput()<<std::endl;
+        }
+    }
     void lexerTest()
     {
         std::queue<Token> token_queue;
