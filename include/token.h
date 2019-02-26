@@ -2,6 +2,7 @@
 #define TOKEN_H_
 
 #include <string>
+#include <vector>
 
 enum TokenType
 {
@@ -87,6 +88,8 @@ struct Token
     operator bool()
     {
         return token_type != kNone;
+        std::vector<int> v;
+    
     }
 };
 

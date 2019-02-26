@@ -9,7 +9,7 @@ class QueryOptimizer{
         QueryOptimizer(const QueryOptimizer&)=delete;
         QueryOptimizer(QueryOptimizer&&)=delete;
         QueryOptimizer& operator=(QueryOptimizer)=delete;
-        int optimizer(SyntaxTree*);
+        void optimizer(SyntaxTree*){}
     private:
 };
 

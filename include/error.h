@@ -5,6 +5,10 @@
 
 enum ErrorType{
     kSqlError,
+    kSyntaxTreeError,
+    kDatabaseNotExistError,
+    kDatabaseExistError,
+    kMemoryError
 };
 
 class Error : public std::exception
@@ -15,7 +19,7 @@ class Error : public std::exception
     {
         return error_message_.c_str();
     };
-    ErrorType getErrorCode()
+    ErrorType getErrorCode()const
     {
         return error_type_;
     }

@@ -15,7 +15,7 @@ public:
   Shell &operator=(Shell) = delete;
   std::string getInput();
   void showResult(const Result &);
-  void showError(const Error &);
+  void showError(const Error &error);
 
 private:
   std::string buffer;

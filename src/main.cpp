@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "lexer.h"
 #include "error.h"
-#include "gsql.h"
+#include "gdbe.h"
 
 int main()
 {
@@ -13,7 +13,7 @@ int main()
     Shell shell;
     Lexer lexer;
     Parser parser;
-    Gsql gsql;
+    GDBE gdbe;
     Result result;
 
     while (true)
@@ -23,8 +23,8 @@ int main()
             str = shell.getInput();
             token_queue = lexer.lex(str);
             syntax_tree = parser.parse(std::move(token_queue));
-            gsql.run(std::move(syntax_tree));
-            while (result = gsql.getResult())
+            gdbe.exec(std::move(syntax_tree));
+            while (result = gdbe.getResult())
             {
                 shell.showResult(result);
             }
