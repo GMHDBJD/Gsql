@@ -17,7 +17,7 @@ class Test
         "CREATE DATABASE gsql;",
         "SHOW DATABASES;",
         "USE gsql;",
-        "CREATE TABLE gsql.test(id INT PRIMARY KEY, test.val INT NOT NULL, name CHAR REFERENCE other.name);",
+        "CREATE TABLE gsql.test(id INT, test.val INT NOT NULL, name CHAR REFERENCE other.name, PRIMARY KEY(test.id,gsql.test.val));",
         "SHOW TABLES;",
         "CREATE INDEX index ON gsql.test(gsql.test.id,val);",
         "SHOW INDEX FROM gsql.test;",

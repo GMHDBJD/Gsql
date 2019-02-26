@@ -31,7 +31,7 @@ public:
   void execDelete(const Node &){};
   void execAlter(const Node &){};
   void execDrop(const Node &);
-  void execCreateTable(const Node &){};
+  void execCreateTable(const Node &);
   void execCreateDatabase(const Node &);
   void execCreateIndex(const Node &){};
   void execShowDatabases(const Node &);

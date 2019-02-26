@@ -62,11 +62,11 @@ void GDBE::execCreate(const Node &create_node)
     const Node &next_node = create_node.childern.front();
     switch (next_node.token.token_type)
     {
-    case kTable:
-        execCreateTable(next_node);
-        break;
     case kDatabase:
         execCreateDatabase(next_node);
+        break;
+    case kTable:
+        execCreateTable(next_node);
         break;
     case kIndex:
         execCreateIndex(next_node);
@@ -176,4 +176,9 @@ void GDBE::execDropDatabase(const Node &database_node)
     if (database_name_ == string_node.token.str)
         database_schema_.clear();
     file_system.remove(kDatabaseDir + string_node.token.str);
+}
+
+void GDBE::execCreateTable(const Node& table_node)
+{
+    
 }

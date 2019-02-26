@@ -60,6 +60,7 @@ private:
   Node parseJoins();
   Node parseJoin();
   Node parseWhere();
+  Node parsePrimary();
   Node *build(Node new_node, Node *parent = nullptr)
   {
     return syntax_tree_.insert(new_node, parent);

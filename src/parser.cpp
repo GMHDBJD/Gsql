@@ -243,6 +243,16 @@ Node Parser::parseAlter()
     }
 }
 
+Node Parser::parsePrimary()
+{
+    Node primary_node{match(kPrimary)};
+    match(kKey);
+    match(kLeftParenthesis);
+    build(parseNames(),&primary_node);
+    match(kRightParenthesis);
+    return primary_node;
+}
+
 Node Parser::parseColumns()
 {
     Node columns_node{Token(kColumns, "COLUMNS")};
@@ -250,7 +260,14 @@ Node Parser::parseColumns()
     while (lookAhead().token_type == kComma)
     {
         next();
-        build(parseColumn(), &columns_node);
+        switch (lookAhead().token_type)
+        {
+        case kPrimary:
+            build(parsePrimary(), &columns_node);
+            break;
+        default:
+            build(parseColumn(), &columns_node);
+        }
     }
     return columns_node;
 }
@@ -270,10 +287,6 @@ Node Parser::parseColumn()
     }
     switch (lookAhead().token_type)
     {
-    case kPrimary:
-        build(next(), &column_node);
-        match(kKey);
-        return column_node;
     case kNot:
         next();
         match(kNull);
@@ -360,7 +373,7 @@ Node Parser::parseOr()
         Node new_or_node{next()};
         build(or_node, &new_or_node);
         build(parseAnd(), &new_or_node);
-        or_node=std::move(new_or_node);
+        or_node = std::move(new_or_node);
     }
     return or_node;
 }
@@ -368,12 +381,12 @@ Node Parser::parseOr()
 Node Parser::parseAnd()
 {
     Node and_node = parseBitsOr();
-    while(lookAhead().token_type == kAnd)
+    while (lookAhead().token_type == kAnd)
     {
         Node new_and_node{next()};
         build(and_node, &new_and_node);
         build(parseBitsOr(), &new_and_node);
-        and_node=std::move(new_and_node);
+        and_node = std::move(new_and_node);
     }
     return and_node;
 }
@@ -386,7 +399,7 @@ Node Parser::parseBitsOr()
         Node new_bits_or_node{next()};
         build(bits_or_node, &new_bits_or_node);
         build(parseBitsExclusiveOr(), &new_bits_or_node);
-        bits_or_node=std::move(new_bits_or_node);
+        bits_or_node = std::move(new_bits_or_node);
     }
     return bits_or_node;
 }
@@ -399,7 +412,7 @@ Node Parser::parseBitsExclusiveOr()
         Node new_bits_exclusive_or_node{next()};
         build(bits_exclusive_or_node, &new_bits_exclusive_or_node);
         build(parseBitsAnd(), &new_bits_exclusive_or_node);
-        bits_exclusive_or_node=new_bits_exclusive_or_node;
+        bits_exclusive_or_node = new_bits_exclusive_or_node;
     }
     return bits_exclusive_or_node;
 }
@@ -412,7 +425,7 @@ Node Parser::parseBitsAnd()
         Node new_bits_and_node{next()};
         build(bits_and_node, &new_bits_and_node);
         build(parseEqualOrNot(), &new_bits_and_node);
-        bits_and_node=std::move(new_bits_and_node);
+        bits_and_node = std::move(new_bits_and_node);
     }
     return bits_and_node;
 }
@@ -420,13 +433,13 @@ Node Parser::parseBitsAnd()
 Node Parser::parseEqualOrNot()
 {
     Node equal_or_not_node = parseCompare();
-    TokenType token_type; 
-    while ((token_type= lookAhead().token_type) == kEqual || token_type == kNotEqual)
+    TokenType token_type;
+    while ((token_type = lookAhead().token_type) == kEqual || token_type == kNotEqual)
     {
         Node new_equal_or_not_node{next()};
         build(equal_or_not_node, &new_equal_or_not_node);
         build(parseCompare(), &new_equal_or_not_node);
-        equal_or_not_node=std::move(new_equal_or_not_node);
+        equal_or_not_node = std::move(new_equal_or_not_node);
     }
     return equal_or_not_node;
 }
