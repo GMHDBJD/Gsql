@@ -20,7 +20,8 @@ enum TokenType
     kTable,
     kDatabase,
     kPrimary,
-    kReference,
+    kReferences,
+    kForeign,
     kIndex,
     kValues,
     kInto,
@@ -76,7 +77,7 @@ enum TokenType
     kValue,
     kExpr,
     kExprs,
-    kJoins
+    kJoins,
 };
 
 struct Token

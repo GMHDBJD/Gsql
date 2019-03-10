@@ -61,6 +61,8 @@ private:
   Node parseJoin();
   Node parseWhere();
   Node parsePrimary();
+  Node parseForeigns();
+  Node parseForeign();
   Node *build(Node new_node, Node *parent = nullptr)
   {
     return syntax_tree_.insert(new_node, parent);

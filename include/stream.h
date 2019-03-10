@@ -31,6 +31,24 @@ size_t getSize(const std::unordered_set<T, U, C> &data)
   return size;
 }
 
+template <typename T, typename U>
+size_t getSize(const std::unordered_map<T, U> &data)
+{
+  size_t size = sizeof(size_t);
+  for (auto &&i : data)
+    size += getSize(i.first) + getSize(i.second);
+  return size;
+}
+
+template <typename T>
+size_t getSize(const std::deque<T> &data)
+{
+  size_t size = sizeof(size_t);
+  for (auto &&i : data)
+    size += getSize(i);
+  return size;
+}
+
 size_t getSize(const std::string &data);
 
 size_t getSize(const DatabaseSchema &database_schema);
@@ -118,6 +136,24 @@ Stream &operator<<(Stream &stream, const std::unordered_set<T, U, C> &data)
   return stream;
 }
 
+template <typename T, typename U>
+Stream &operator<<(Stream &stream, const std::unordered_map<T, U> &data)
+{
+  stream << data.size();
+  for (auto &&i : data)
+    stream << i.first << i.second;
+  return stream;
+}
+
+template <typename T>
+Stream &operator<<(Stream &stream, const std::deque<T> &data)
+{
+  stream << data.size();
+  for (auto &&i : data)
+    stream << i;
+  return stream;
+}
+
 template <typename T>
 Stream &operator>>(Stream &stream, T &data)
 {
@@ -166,6 +202,35 @@ Stream &operator>>(Stream &stream, std::unordered_set<T, U, C> &data)
     stream >> key;
     data.insert(key);
   }
+  return stream;
+}
+
+template <typename T, typename U>
+Stream &operator>>(Stream &stream, std::unordered_map<T, U> &data)
+{
+  size_t size = 0;
+  stream >> size;
+  data.clear();
+  for (size_t i = 0; i < size; ++i)
+  {
+    T key;
+    U value;
+    stream >> key >> value;
+    data[key] = value;
+  }
+  return stream;
+}
+
+template <typename T>
+Stream &operator>>(Stream &stream, std::deque<T> &data)
+{
+  size_t size = 0;
+  stream >> size;
+  std::deque<T> temp_deque;
+  temp_deque.resize(size);
+  for (size_t i = 0; i < size; ++i)
+    stream >> temp_deque[i];
+  data.swap(temp_deque);
   return stream;
 }
 

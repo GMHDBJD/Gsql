@@ -65,6 +65,20 @@ void Shell::showError(const Error &error)
         break;
     case kMemoryError:
         std::cout << "memory error" << std::endl;
+        break;
+    case kIncorrectDatabaseNameError:
+        std::cout << "incorrect database name '" << error.what() << "' " << std::endl;
+        break;
+    case kIncorrectNameError:
+        std::cout << "incorrect name '" << error.what() << " '" << std::endl;
+        break;
+    case kTableExistError:
+        std::cout << "table '" << error.what() << "' "
+                  << "exist" << std::endl;
+        break;
+    case kIncorrectTableNameError:
+        std::cout << "incorrect table name '" << error.what() << "' " << std::endl;
+        break;
     default:
         break;
     }

@@ -10,7 +10,8 @@ enum ResultType
     kSelectResult,
     kShowDatabasesResult,
     kCreateDatabaseResult,
-    kUseResult
+    kUseResult,
+    kShowTablesResult
 };
 
 struct Result

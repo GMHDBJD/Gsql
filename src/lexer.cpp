@@ -63,8 +63,8 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 token_queue.push(Token(kIndex, str));
             else if (str == "DATABASE")
                 token_queue.push(Token(kDatabase, str));
-            else if (str == "REFERENCE")
-                token_queue.push(Token(kReference, str));
+            else if (str == "REFERENCES")
+                token_queue.push(Token(kReferences, str));
             else if (str == "CHAR")
                 token_queue.push(Token(kChar, str));
             else if (str == "INT")
@@ -85,6 +85,8 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 token_queue.push(Token(kOn, str));
             else if (str == "KEY")
                 token_queue.push(Token(kKey, str));
+            else if (str == "FOREIGN")
+                token_queue.push(Token(kForeign, str));
             else
                 token_queue.push(Token(kString, str));
         }

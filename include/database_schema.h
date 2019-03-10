@@ -1,7 +1,8 @@
-#ifndef DATABASESCHEMA_H_
-#define DATABASESCHEMA_H_
+#ifndef DATABASE_SCHEMA_H_
+#define DATABASE_SCHEMA_H_
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <queue>
 #include <cstring>
@@ -40,7 +41,6 @@ enum DataType
 
 struct ColumnSchema
 {
-    std::string name;
     DataType data_type = kIntType;
     bool not_null = false;
     std::string reference_table_name;
@@ -50,32 +50,31 @@ struct ColumnSchema
 struct IndexSchema
 {
     size_t root_page_num;
-    std::string name;
     std::unordered_set<std::string> column_name_set;
 };
 
 struct TableSchema
 {
     size_t root_page_num;
-    std::string name;
-    std::unordered_set<ColumnSchema, MyHashFunction, MyEqualFunction> column_schema_set;
+    std::unordered_map<std::string, ColumnSchema> column_schema_map;
     std::unordered_set<std::string> primary_set;
-    std::unordered_set<IndexSchema, MyHashFunction, MyEqualFunction> index_schema_set;
+    std::unordered_map<std::string, IndexSchema> index_schema_map;
 };
 
 struct DatabaseSchema
 {
     std::vector<size_t> page_vector;
     Settings settings;
-    std::vector<size_t> free_page_vector;
-    std::unordered_set<TableSchema, MyHashFunction, MyEqualFunction> table_schema_set;
+    std::deque<size_t> free_page_deque;
+    std::unordered_map<std::string, TableSchema> table_schema_map;
+    size_t max_page;
     std::vector<PagePtr> toPage();
     void pageTo(const std::vector<PagePtr> &page_ptr_vector);
     void clear()
     {
         page_vector.clear();
-        free_page_vector.clear();
-        table_schema_set.clear();
+        free_page_deque.clear();
+        table_schema_map.clear();
     }
 };
 

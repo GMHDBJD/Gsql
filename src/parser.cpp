@@ -248,7 +248,7 @@ Node Parser::parsePrimary()
     Node primary_node{match(kPrimary)};
     match(kKey);
     match(kLeftParenthesis);
-    build(parseNames(),&primary_node);
+    build(parseNames(), &primary_node);
     match(kRightParenthesis);
     return primary_node;
 }
@@ -265,11 +265,30 @@ Node Parser::parseColumns()
         case kPrimary:
             build(parsePrimary(), &columns_node);
             break;
+        case kForeign:
+            build(parseForeign(), &columns_node);
+            break;
         default:
             build(parseColumn(), &columns_node);
+            break;
         }
     }
     return columns_node;
+}
+
+Node Parser::parseForeign()
+{
+    Node foreign_node{match(kForeign)};
+    match(kKey);
+    match(kLeftParenthesis);
+    build(parseName(), &foreign_node);
+    match(kRightParenthesis);
+    match(kReferences);
+    build(parseName(), &foreign_node);
+    match(kLeftParenthesis);
+    build(parseName(), &foreign_node);
+    match(kRightParenthesis);
+    return foreign_node;
 }
 
 Node Parser::parseColumn()
@@ -292,11 +311,6 @@ Node Parser::parseColumn()
         match(kNull);
         build(Token(kNotNull, "NOTNULL"), &column_node);
         return column_node;
-    case kReference:
-    {
-        Node *reference_node_ptr = build(next(), &column_node);
-        build(parseName(), reference_node_ptr);
-    }
     default:
         return column_node;
     }

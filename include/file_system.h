@@ -1,5 +1,5 @@
-#ifndef FILESYSTEM_H_
-#define FILESYSTEM_H_
+#ifndef FILE_SYSTEM_H_
+#define FILE_SYSTEM_H_
 #include <fstream>
 #include <experimental/filesystem>
 
@@ -72,12 +72,13 @@ public:
     if (file_)
       file_.close();
   }
+  static FileSystem& getInstance();
 
 private:
+  FileSystem(){}
   std::fstream file_;
   std::string filename_;
 };
 
-extern FileSystem file_system;
 
 #endif
