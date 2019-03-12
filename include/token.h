@@ -38,6 +38,8 @@ enum TokenType
     kKey,
     kDatabases,
     kTables,
+    kDefault,
+    kExplain,
 
     kAnd,
     kNot,

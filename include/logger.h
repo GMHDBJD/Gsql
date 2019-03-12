@@ -1,14 +1,18 @@
 #ifndef LOGGER_H_
 #define LOGGER_H_
 
-struct Log{
-
+struct Log
+{
 };
 
-class Logger{
-    private:
-        Logger(){}
-        static Logger& getInstance();
+class Logger
+{
+  public:
+    static Logger &getInstance();
+    void addLog(const Log&){}
+
+  private:
+    Logger() {}
 };
 
 #endif

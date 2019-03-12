@@ -13,11 +13,11 @@ namespace unittest
 class Test
 {
   private:
-    std::string sql_arr[17] = {
+    std::string sql_arr[18] = {
         "CREATE DATABASE gsql;",
         "SHOW DATABASES;",
         "USE gsql;",
-        "CREATE TABLE gsql.test(id INT, test.val INT NOT NULL, name CHAR, FOREIGN KEY(val) REFERENCES other(name), PRIMARY KEY(test.id,gsql.test.val));",
+        "CREATE TABLE gsql.test(id INT DEFAULT 1, test.val INT NOT NULL DEFAULT 'fdjsl', name CHAR(10), FOREIGN KEY(val) REFERENCES other(name), PRIMARY KEY(test.id,gsql.test.val));",
         "SHOW TABLES;",
         "CREATE INDEX index ON gsql.test(gsql.test.id,val);",
         "SHOW INDEX FROM gsql.test;",
@@ -30,7 +30,8 @@ class Test
         "DELETE FROM test WHERE id>6;",
         "ALTER TABLE test ADD str CHAR;",
         "DROP TABLE test;",
-        "DROP DATABASE gsql;"};
+        "DROP DATABASE gsql;",
+        "EXPLAIN gsql.test;"};
 
   public:
     void shellTest()
@@ -38,14 +39,14 @@ class Test
         Shell shell;
         while (true)
         {
-            std::cout<<shell.getInput()<<std::endl;
+            std::cout << shell.getInput() << std::endl;
         }
     }
     void lexerTest()
     {
         std::queue<Token> token_queue;
         Lexer lexer;
-        for (int i = 0; i < 17; ++i)
+        for (int i = 0; i < 18; ++i)
         {
             token_queue = lexer.lex(sql_arr[i]);
             std::cout << sql_arr[i] << std::endl;
@@ -72,7 +73,7 @@ class Test
         SyntaxTree syntax_tree;
         std::ofstream fout("test.md");
 
-        for (int i = 0; i < 17; ++i)
+        for (int i = 0; i < 18; ++i)
         {
             fout << sql_arr[i] << std::endl;
             fout << "\n```mermaid\ngraph TD;\n";

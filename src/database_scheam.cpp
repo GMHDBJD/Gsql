@@ -3,13 +3,11 @@
 
 std::vector<PagePtr> DatabaseSchema::toPage()
 {
-    size_t total_size = getSize(*this);
-    size_t size = (total_size - 1) / kPageSize + 1;
-    Page *page_arr = new Page[size];
+    Page *page_arr = new Page[page_vector.size()];
     Stream stream{*page_arr, kPageSize};
     stream << *this;
     std::vector<PagePtr> page_ptr_vector;
-    for (size_t i = 0; i < (total_size / kPageSize + 1); ++i)
+    for (size_t i = 0; i < page_vector.size(); ++i)
     {
         PagePtr page_ptr(page_arr[i]);
         page_ptr_vector.push_back(page_ptr);
@@ -24,4 +22,9 @@ void DatabaseSchema::pageTo(const std::vector<PagePtr> &page_ptr_vector)
         page_pointer_vector.push_back(i.get());
     Stream stream(page_pointer_vector, kPageSize);
     stream >> *this;
+}
+
+size_t DatabaseSchema::size() const
+{
+    return getSize(*this);
 }

@@ -2,6 +2,7 @@
 #define LEXER_H_
 
 #include "token.h"
+#include "error.h"
 #include <string>
 #include <queue>
 

@@ -87,6 +87,10 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 token_queue.push(Token(kKey, str));
             else if (str == "FOREIGN")
                 token_queue.push(Token(kForeign, str));
+            else if (str == "DEFAULT")
+                token_queue.push(Token(kDefault, str));
+            else if(str=="EXPLAIN")
+                token_queue.push(Token(kExplain,str));
             else
                 token_queue.push(Token(kString, str));
         }
@@ -223,6 +227,8 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 token_queue.push(Token(kMod, "MOD"));
             else if (str == "~")
                 token_queue.push(Token(kBitsNot, "BITSNOT"));
+            else
+                throw Error(kSqlError, str);
         }
     }
     return token_queue;

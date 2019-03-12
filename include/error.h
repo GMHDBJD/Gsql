@@ -18,7 +18,10 @@ enum ErrorType
   kColumnNotExistError,
   kDuplicateColumnError,
   kAddForeiginError,
-  kMultiplePrimaryKeyError
+  kMultiplePrimaryKeyError,
+  kNoDatabaseSelectError,
+  kOperationError,
+  kInvalidValueError
 };
 
 class Error : public std::exception

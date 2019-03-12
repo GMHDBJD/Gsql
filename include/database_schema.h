@@ -33,16 +33,12 @@ struct Settings
     std::string database_dir;
 };
 
-enum DataType
-{
-    kIntType,
-    kCharType,
-};
-
 struct ColumnSchema
 {
-    DataType data_type = kIntType;
+    int data_type = 0;
     bool not_null = false;
+    bool null_default = true;
+    std::string default_value;
     std::string reference_table_name;
     std::string reference_column_name;
 };
@@ -56,6 +52,7 @@ struct IndexSchema
 struct TableSchema
 {
     size_t root_page_num;
+    std::vector<std::string> column_order_vector;
     std::unordered_map<std::string, ColumnSchema> column_schema_map;
     std::unordered_set<std::string> primary_set;
     std::unordered_map<std::string, IndexSchema> index_schema_map;
@@ -67,7 +64,7 @@ struct DatabaseSchema
     Settings settings;
     std::deque<size_t> free_page_deque;
     std::unordered_map<std::string, TableSchema> table_schema_map;
-    size_t max_page;
+    size_t max_page = 0;
     std::vector<PagePtr> toPage();
     void pageTo(const std::vector<PagePtr> &page_ptr_vector);
     void clear()
@@ -76,6 +73,16 @@ struct DatabaseSchema
         free_page_deque.clear();
         table_schema_map.clear();
     }
+    void swap(DatabaseSchema &rhs)
+    {
+        using std::swap;
+        swap(page_vector, rhs.page_vector);
+        swap(settings, rhs.settings);
+        swap(free_page_deque, rhs.free_page_deque);
+        swap(table_schema_map, rhs.table_schema_map);
+        swap(max_page, rhs.max_page);
+    }
+    size_t size() const;
 };
 
 #endif

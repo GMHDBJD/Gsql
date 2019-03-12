@@ -28,7 +28,6 @@ void Shell::showResult(const Result &result)
     switch (result.type_)
     {
     case kShowDatabasesResult:
-        std::cout << "database" << std::endl;
         for (auto &&i : result.string_vector_vector_.front())
         {
             std::cout << i << std::endl;
@@ -39,6 +38,32 @@ void Shell::showResult(const Result &result)
         break;
     case kCreateDatabaseResult:
         std::cout << "create database" << std::endl;
+        break;
+    case kShowTablesResult:
+        for (auto &&i : result.string_vector_vector_.front())
+        {
+            std::cout << i << std::endl;
+        }
+        break;
+    case kDropDatabaseResult:
+        std::cout << "drop database" << std::endl;
+        break;
+    case kCreateTableResult:
+        std::cout << "create table" << std::endl;
+        break;
+    case kDropTableResult:
+        std::cout << "drop table" << std::endl;
+        break;
+    case kExplainResult:
+        std::cout << "column_name     not_null    default_value   reference_table_name    reference_column_name" << std::endl;
+        for (auto &&i : result.string_vector_vector_)
+        {
+            for (auto &&j : i)
+            {
+                std::cout << j << "  ";
+            }
+            std::cout << std::endl;
+        }
         break;
     default:
         break;
@@ -78,6 +103,24 @@ void Shell::showError(const Error &error)
         break;
     case kIncorrectTableNameError:
         std::cout << "incorrect table name '" << error.what() << "' " << std::endl;
+        break;
+    case kNoDatabaseSelectError:
+        std::cout << "no database select" << std::endl;
+        break;
+    case kTableNotExistError:
+        std::cout << "table '" << error.what() << "' not exist" << std::endl;
+        break;
+    case kColumnNotExistError:
+        std::cout << "column '" << error.what() << "' not exist" << std::endl;
+        break;
+    case kDuplicateColumnError:
+        std::cout << "duplicate column name '" << error.what() << "' " << std::endl;
+        break;
+    case kAddForeiginError:
+        std::cout << "error when add foreign key" << std::endl;
+        break;
+    case kMultiplePrimaryKeyError:
+        std::cout << "multiple primary key" << std::endl;
         break;
     default:
         break;

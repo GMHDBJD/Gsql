@@ -48,6 +48,9 @@ Node Parser::parseAll()
     case kAlter:
         temp_node = parseAlter();
         break;
+    case kExplain:
+        temp_node = parseExplain();
+        break;
     default:
         throw Error(kSqlError, lookAhead().str);
     }
@@ -298,22 +301,42 @@ Node Parser::parseColumn()
     switch (lookAhead().token_type)
     {
     case kInt:
-    case kChar:
         build(next(), &column_node);
         break;
+    case kChar:
+    {
+        Node *char_node_ptr = build(next(), &column_node);
+        if (lookAhead().token_type == kLeftParenthesis)
+        {
+            next();
+            build(match(kNum), char_node_ptr);
+            match(kRightParenthesis);
+        }
+        break;
+    }
     default:
         throw Error(kSqlError, lookAhead().str);
     }
-    switch (lookAhead().token_type)
+    if (lookAhead().token_type == kNot)
     {
-    case kNot:
         next();
         match(kNull);
         build(Token(kNotNull, "NOTNULL"), &column_node);
-        return column_node;
-    default:
-        return column_node;
     }
+    if (lookAhead().token_type == kDefault)
+    {
+        Node *default_node_ptr = build(next(), &column_node);
+        switch (lookAhead().token_type)
+        {
+        case kString:
+        case kNum:
+            build(next(), default_node_ptr);
+            break;
+        default:
+            throw Error(kSqlError, lookAhead().str);
+        }
+    }
+    return column_node;
 }
 
 Node Parser::parseName()
@@ -584,4 +607,11 @@ Node Parser::parseWhere()
     Node where_node{next()};
     build(parseExpr(), &where_node);
     return where_node;
+}
+
+Node Parser::parseExplain()
+{
+    Node explain_node{match(kExplain)};
+    build(parseName(), &explain_node);
+    return explain_node;
 }

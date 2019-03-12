@@ -14,13 +14,13 @@ Stream &operator>>(Stream &stream, Settings &settings)
 
 Stream &operator>>(Stream &stream, TableSchema &table_schema)
 {
-  stream >> table_schema.root_page_num >> table_schema.column_schema_map >> table_schema.primary_set >> table_schema.index_schema_map;
+  stream >> table_schema.root_page_num >> table_schema.column_order_vector >> table_schema.column_schema_map >> table_schema.primary_set >> table_schema.index_schema_map;
   return stream;
 }
 
 Stream &operator>>(Stream &stream, ColumnSchema &column_schema)
 {
-  stream >> column_schema.data_type >> column_schema.not_null >> column_schema.reference_table_name >> column_schema.reference_column_name;
+  stream >> column_schema.data_type >> column_schema.not_null >> column_schema.null_default >> column_schema.default_value >> column_schema.reference_table_name >> column_schema.reference_column_name;
   return stream;
 }
 
@@ -44,13 +44,13 @@ Stream &operator<<(Stream &stream, const Settings &settings)
 
 Stream &operator<<(Stream &stream, const TableSchema &table_schema)
 {
-  stream << table_schema.root_page_num << table_schema.column_schema_map << table_schema.primary_set << table_schema.index_schema_map;
+  stream << table_schema.root_page_num << table_schema.column_order_vector << table_schema.column_schema_map << table_schema.primary_set << table_schema.index_schema_map;
   return stream;
 }
 
 Stream &operator<<(Stream &stream, const ColumnSchema &column_schema)
 {
-  stream << column_schema.data_type << column_schema.not_null << column_schema.reference_table_name << column_schema.reference_column_name;
+  stream << column_schema.data_type << column_schema.not_null << column_schema.null_default << column_schema.default_value << column_schema.reference_table_name << column_schema.reference_column_name;
   return stream;
 }
 
@@ -92,12 +92,12 @@ size_t getSize(const DatabaseSchema &database_schema)
 
 size_t getSize(const TableSchema &table_schema)
 {
-  return getSize(table_schema.root_page_num) + getSize(table_schema.column_schema_map) + getSize(table_schema.primary_set) + getSize(table_schema.index_schema_map);
+  return getSize(table_schema.root_page_num) + getSize(table_schema.column_order_vector) + getSize(table_schema.column_schema_map) + getSize(table_schema.primary_set) + getSize(table_schema.index_schema_map);
 }
 
 size_t getSize(const ColumnSchema &column_schema)
 {
-  return getSize(column_schema.data_type) + getSize(column_schema.not_null) + getSize(column_schema.reference_table_name) + getSize(column_schema.reference_column_name);
+  return getSize(column_schema.data_type) + getSize(column_schema.not_null) + getSize(column_schema.null_default) + getSize(column_schema.default_value) + getSize(column_schema.reference_table_name) + getSize(column_schema.reference_column_name);
 }
 
 size_t getSize(const IndexSchema &index_schema)

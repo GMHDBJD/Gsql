@@ -2,28 +2,18 @@
 #define FILE_SYSTEM_H_
 #include <fstream>
 #include <experimental/filesystem>
+#include <iostream>
+#include "const.h"
 
 namespace fs = std::experimental::filesystem;
-
-constexpr int kPageSize = 16000;
-constexpr size_t kSizeOfSizeT = sizeof(size_t);
-constexpr size_t kSizeOfInt = sizeof(int);
-constexpr size_t kSizeOfBool = sizeof(bool);
-constexpr size_t kSizeOfChar = sizeof(char);
-
-using Page = char[kPageSize];
-using PagePtr = std::shared_ptr<Page>;
 
 class FileSystem
 {
 public:
-  PagePtr read(size_t page_num)
+  void read(size_t page_num, PagePtr page_ptr)
   {
     file_.seekg(page_num * kPageSize);
-    char *page = new Page;
-    file_.read(page, kPageSize);
-    PagePtr page_ptr(page);
-    return page_ptr;
+    file_.read(page_ptr.get(), kPageSize);
   };
   void write(size_t page_num, PagePtr page_ptr)
   {
@@ -67,18 +57,26 @@ public:
   {
     return fs::remove(filename);
   }
+  void rename(const std::string &from, const std::string &to)
+  {
+    return fs::rename(from, to);
+  }
   ~FileSystem()
   {
     if (file_)
       file_.close();
   }
-  static FileSystem& getInstance();
+  size_t size()
+  {
+    file_.seekg(std::fstream::end);
+    return file_.tellg();
+  }
+  static FileSystem &getInstance();
 
 private:
-  FileSystem(){}
+  FileSystem() {}
   std::fstream file_;
   std::string filename_;
 };
-
 
 #endif
