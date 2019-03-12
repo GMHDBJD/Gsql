@@ -88,7 +88,10 @@ void GDBE::execCreateDatabase(const Node &database_node)
         throw Error(kDatabaseExistError, string_node.token.str);
     DatabaseSchema new_database_schema;
     new_database_schema.page_vector.push_back(0);
-    std::vector<PagePtr> page_ptr_vector = new_database_schema.toPage();
+    std::vector<PagePtr> page_ptr_vector;
+    page_ptr_vector.push_back(buffer_pool_.getPage(0, true));
+    Stream stream(page_ptr_vector);
+    stream << new_database_schema;
     std::fstream file(string_node.token.str, std::fstream::out);
     file_system_.swap(file);
     file_system_.write(0, page_ptr_vector[0]);
@@ -119,6 +122,11 @@ void GDBE::execShow(const Node &show_node)
 
 void GDBE::execShowDatabases(const Node &databases_node)
 {
+    if (!file_system_.exists(kDatabaseDir))
+    {
+        result_.type_ = kShowDatabasesResult;
+        return;
+    }
     std::vector<std::string> string_vector;
     for (auto &entry : fs::directory_iterator(kDatabaseDir))
     {
@@ -136,16 +144,17 @@ void GDBE::execUse(const Node &use_node)
         if (!file_system_.exists(kDatabaseDir + string_node.token.str))
             throw Error(kDatabaseNotExistError, string_node.token.str);
         file_system_.setFile(kDatabaseDir + string_node.token.str);
-        PagePtr root_page = buffer_pool_.getPage(0);
-        Stream stream(root_page.get(), kPageSize);
+        std::vector<PagePtr> page_ptr_vector{buffer_pool_.getPage(0)};
+        Stream stream(page_ptr_vector);
         DatabaseSchema new_database_schema;
         stream >> new_database_schema.page_vector;
-        std::vector<PagePtr> page_ptr_vector;
+        page_ptr_vector.clear();
         for (auto &&i : new_database_schema.page_vector)
         {
             page_ptr_vector.push_back(buffer_pool_.getPage(i));
         }
-        new_database_schema.pageTo(page_ptr_vector);
+        stream.setBuffer(page_ptr_vector);
+        stream >> new_database_schema;
         database_schema_.swap(new_database_schema);
         database_name_ = string_node.token.str;
     }
@@ -295,7 +304,7 @@ void GDBE::execCreateTable(const Node &table_node)
             auto reference_table_iter = database_schema_.table_schema_map.find(reference_table_name);
             if (reference_table_iter == database_schema_.table_schema_map.end())
                 throw Error(kAddForeiginError, "");
-            auto reference_column_iter = reference_table_iter->second.column_schema_map.find(column_name);
+            auto reference_column_iter = reference_table_iter->second.column_schema_map.find(reference_column_name);
             if (reference_column_iter == reference_table_iter->second.column_schema_map.end())
                 throw Error(kAddForeiginError, "");
             if (reference_column_iter->second.data_type != column_iter->second.data_type || reference_column_iter->second.not_null)
@@ -305,7 +314,7 @@ void GDBE::execCreateTable(const Node &table_node)
             if (!column_iter->second.reference_column_name.empty() && column_iter->second.reference_column_name != reference_column_name)
                 throw Error(kAddForeiginError, "");
             column_iter->second.reference_column_name = reference_table_name;
-            column_iter->second.reference_table_name = reference_table_name;
+            column_iter->second.reference_table_name = reference_column_name;
         }
         else if (node.token.token_type == kPrimary)
         {
@@ -323,18 +332,9 @@ void GDBE::execCreateTable(const Node &table_node)
             }
         }
     }
-    size_t root_page_num = createNewPage();
-    new_table_schema.root_page_num = 2;
+    new_table_schema.root_page_num = createNewPage();
     database_schema_.table_schema_map[table_name] = new_table_schema;
-    try
-    {
-        updateDatabaseSchema();
-    }
-    catch (const Error &error)
-    {
-        database_schema_.table_schema_map.erase(table_name);
-        throw error;
-    }
+    updateDatabaseSchema();
     result_.type_ = kCreateTableResult;
 }
 
@@ -736,7 +736,7 @@ void GDBE::execExplain(const Node &explain_node)
         string_vector.push_back(column_schema.default_value);
         string_vector.push_back(column_schema.reference_table_name);
         string_vector.push_back(column_schema.reference_column_name);
-        result_.string_vector_vector_.push_back(string_vector);
+        result_.string_vector_vector_.push_back(std::move(string_vector));
     }
     result_.type_ = kExplainResult;
 }

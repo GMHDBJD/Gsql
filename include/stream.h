@@ -69,30 +69,30 @@ Stream &operator<<(Stream &, const std::vector<T> &data);
 struct Stream
 {
 public:
-  Stream(char *mem, size_t per_size) : total_size_(per_size), total_pos_(0), vector_index_(0), vector_pos_(0), per_size_(per_size)
+  Stream(std::vector<PagePtr> page_ptr_vector) : total_size_(page_ptr_vector.size() * kPageSize), total_pos_(0), vector_index_(0), vector_pos_(0)
   {
-    memory_vector_.push_back(mem);
-  }
-  Stream(std::vector<char *> mem_vector, size_t per_size) : total_size_(mem_vector.size() * per_size), memory_vector_(mem_vector), total_pos_(0), vector_index_(0), vector_pos_(0), per_size_(per_size) {}
-  void setMemory(std::vector<char *> mem_vector)
-  {
-    memory_vector_ = mem_vector;
-    total_size_ = 0;
-    for (auto &&i : mem_vector)
+    for (auto &&i : page_ptr_vector)
     {
-      total_size_ += sizeof(i);
+      buffer_vector_.push_back(i->buffer);
     }
+  }
+  void setBuffer(std::vector<PagePtr> page_ptr_vector)
+  {
+    for (auto &&i : page_ptr_vector)
+    {
+      buffer_vector_.push_back(i->buffer);
+    }
+    total_size_ = page_ptr_vector.size() * kPageSize;
     total_pos_ = 0;
     vector_index_ = 0;
     vector_pos_ = 0;
   }
 
-  std::vector<char *> memory_vector_;
+  std::vector<char *> buffer_vector_;
   size_t total_size_;
   size_t total_pos_;
   size_t vector_index_;
   size_t vector_pos_;
-  size_t per_size_;
 };
 
 template <typename T>
@@ -102,17 +102,17 @@ Stream &operator<<(Stream &stream, const T &data)
     throw Error(kMemoryError, "Memory error");
   size_t data_size = sizeof(T);
   size_t current_copy_size = 0;
-  size_t capacy = stream.per_size_ - stream.vector_pos_;
+  size_t capacy = kPageSize - stream.vector_pos_;
   while (data_size > capacy)
   {
-    std::copy(reinterpret_cast<const char *>(&data + current_copy_size), reinterpret_cast<const char *>(&data + current_copy_size + capacy), stream.memory_vector_[stream.vector_index_] + stream.vector_pos_);
+    std::copy(reinterpret_cast<const char *>(&data + current_copy_size), reinterpret_cast<const char *>(&data + current_copy_size + capacy), stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_);
     stream.total_pos_ += capacy;
     data_size -= capacy;
     stream.vector_pos_ = 0;
     ++stream.vector_index_;
-    capacy = stream.per_size_;
+    capacy = kPageSize;
   }
-  std::copy(reinterpret_cast<const char *>(&data + current_copy_size), reinterpret_cast<const char *>(&data + current_copy_size + data_size), stream.memory_vector_[stream.vector_index_] + stream.vector_pos_);
+  std::copy(reinterpret_cast<const char *>(&data + current_copy_size), reinterpret_cast<const char *>(&data + current_copy_size + data_size), stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_);
   stream.total_pos_ += data_size;
   stream.vector_pos_ += data_size;
   return stream;
@@ -161,17 +161,17 @@ Stream &operator>>(Stream &stream, T &data)
     throw Error(kMemoryError, "Memory error");
   size_t data_size = sizeof(T);
   size_t current_copy_size = 0;
-  size_t capacy = stream.per_size_ - stream.vector_pos_;
+  size_t capacy = kPageSize - stream.vector_pos_;
   while (data_size > capacy)
   {
-    std::copy(reinterpret_cast<const T *>(stream.memory_vector_[stream.vector_index_] + stream.vector_pos_), reinterpret_cast<const T *>(stream.memory_vector_[stream.vector_index_] + stream.vector_pos_ + capacy), &data + current_copy_size);
+    std::copy(reinterpret_cast<const T *>(stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_), reinterpret_cast<const T *>(stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_ + capacy), &data + current_copy_size);
     stream.total_pos_ += capacy;
     data_size -= capacy;
     stream.vector_pos_ = 0;
     ++stream.vector_index_;
-    capacy = stream.per_size_;
+    capacy = kPageSize;
   }
-  std::copy(reinterpret_cast<const T *>(stream.memory_vector_[stream.vector_index_] + stream.vector_pos_), reinterpret_cast<const T *>(stream.memory_vector_[stream.vector_index_] + stream.vector_pos_ + data_size), &data + current_copy_size);
+  std::copy(reinterpret_cast<const T *>(stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_), reinterpret_cast<const T *>(stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_ + data_size), &data + current_copy_size);
   stream.total_pos_ += data_size;
   stream.vector_pos_ += data_size;
   return stream;

@@ -10,7 +10,11 @@ constexpr size_t kSizeOfInt = sizeof(int);
 constexpr size_t kSizeOfBool = sizeof(bool);
 constexpr size_t kSizeOfChar = sizeof(char);
 constexpr size_t kSizeofPageHeader = sizeof(bool) + sizeof(size_t);
-using Page = char[kPageSize];
+
+struct Page{
+    char buffer[kPageSize];
+};
+
 using PagePtr = std::shared_ptr<Page>;
 
 #endif

@@ -13,12 +13,12 @@ public:
   void read(size_t page_num, PagePtr page_ptr)
   {
     file_.seekg(page_num * kPageSize);
-    file_.read(page_ptr.get(), kPageSize);
+    file_.read(page_ptr->buffer, kPageSize);
   };
   void write(size_t page_num, PagePtr page_ptr)
   {
     file_.seekp(page_num * kPageSize);
-    file_.write(page_ptr.get(), kPageSize);
+    file_.write(page_ptr->buffer, kPageSize);
     file_.flush();
   }
   void setFile(std::string filename)

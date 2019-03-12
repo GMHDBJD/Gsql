@@ -65,8 +65,6 @@ struct DatabaseSchema
     std::deque<size_t> free_page_deque;
     std::unordered_map<std::string, TableSchema> table_schema_map;
     size_t max_page = 0;
-    std::vector<PagePtr> toPage();
-    void pageTo(const std::vector<PagePtr> &page_ptr_vector);
     void clear()
     {
         page_vector.clear();
@@ -82,7 +80,6 @@ struct DatabaseSchema
         swap(table_schema_map, rhs.table_schema_map);
         swap(max_page, rhs.max_page);
     }
-    size_t size() const;
 };
 
 #endif

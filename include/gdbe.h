@@ -108,47 +108,39 @@ public:
 
   void updateDatabaseSchema()
   {
-    size_t page_num = (database_schema_.size() - 1) / kPageSize + 1;
+    size_t page_num = (getSize(database_schema_) - 1) / kPageSize + 1;
     while (page_num < database_schema_.page_vector.size())
     {
       database_schema_.page_vector.push_back(getFreePage());
-      page_num = (database_schema_.size() - 1) / kPageSize + 1;
+      page_num = (getSize(database_schema_) - 1) / kPageSize + 1;
     }
-    std::vector<PagePtr> page_ptr_vector = database_schema_.toPage();
-    std::vector<char *> page_vector;
-    for (auto &&i : page_ptr_vector)
+    std::vector<PagePtr> page_ptr_vector;
+    for (auto &&i : database_schema_.page_vector)
     {
-      page_vector.push_back(i.get());
+      page_ptr_vector.push_back(buffer_pool_.getPage(i));
     }
-    /*for (size_t i = 0; i < page_ptr_vector.size(); ++i)
+    Stream stream(page_ptr_vector);
+    stream<<database_schema_;
+    for (size_t i = 0; i < page_ptr_vector.size(); ++i)
       file_system_.write(database_schema_.page_vector[i], page_ptr_vector[i]);
-    PagePtr page_ptr = buffer_pool_.getPage(0);*/
-    char *new_page = new Page;
-    new_page[0] = 'a';
-    new_page[1] = 'b';
-    PagePtr page_ptr(new_page);
-    file_system_.write(0, page_ptr);
-    PagePtr new_page_ptr = buffer_pool_.getPage(0);
-    std::cout << memcmp(new_page, new_page_ptr.get(), kPageSize) << std::endl;
   }
 
   size_t createNewPage()
   {
     size_t new_page_num = getFreePage();
     PagePtr page_ptr = buffer_pool_.getPage(new_page_num, true);
-    char *new_page = page_ptr.get();
+    char *new_page = page_ptr->buffer;
     bool leaf = true;
     size_t size = 0;
     std::copy(reinterpret_cast<const char *>(&leaf), reinterpret_cast<const char *>(&leaf + kSizeOfBool), new_page);
     std::copy(reinterpret_cast<const char *>(&size), reinterpret_cast<const char *>(&size + kSizeOfSizeT), new_page + kSizeOfBool);
-    file_system_.write(new_page_num, page_ptr);
     return new_page_num;
   }
 
   void insertRootPage(size_t root_page_num, char *key_value, size_t key_size, char *data_value, size_t data_size)
   {
     PagePtr page = buffer_pool_.getPage(root_page_num);
-    char *node = page.get();
+    char* node = page->buffer;
     bool leaf = *reinterpret_cast<bool *>(node);
     size_t size = *reinterpret_cast<size_t *>(node + kSizeOfBool);
     if (pageIsFull(size, key_size, data_size))
