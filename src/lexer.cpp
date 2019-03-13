@@ -96,6 +96,8 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 token_queue.push(Token(kDefault, str));
             else if (temp_str == "EXPLAIN")
                 token_queue.push(Token(kExplain, str));
+            else if (temp_str == "UNIQUE")
+                token_queue.push(Token(kUnique, str));
             else if (temp_str == "EXIT")
                 token_queue.push(Token(kExit, str));
             else

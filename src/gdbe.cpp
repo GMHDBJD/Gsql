@@ -230,22 +230,21 @@ void GDBE::execCreateTable(const Node &table_node)
             default:
                 throw Error(kSyntaxTreeError, node.childern[1].token.str);
             }
-            switch (node.childern.size())
+            for (size_t i = 2; i < node.childern.size(); i++)
             {
-            case 2:
-                break;
-            case 3:
-            {
-                switch (node.childern.back().token.token_type)
+                switch (node.childern[i].token.token_type)
                 {
                 case kNotNull:
                 {
                     new_column_schema.not_null = true;
-                    new_column_schema.null_default = false;
-                    if (new_column_schema.data_type == 0)
-                        new_column_schema.default_value = "0";
-                    else
-                        new_column_schema.default_value = "";
+                    if (new_column_schema.null_default)
+                    {
+                        new_column_schema.null_default = false;
+                        if (new_column_schema.data_type == 0)
+                            new_column_schema.default_value = "0";
+                        else
+                            new_column_schema.default_value = "";
+                    }
                     break;
                 }
                 case kDefault:
@@ -262,28 +261,14 @@ void GDBE::execCreateTable(const Node &table_node)
                     }
                     break;
                 }
+                case kUnique:
+                {
+                    new_column_schema.unique = true;
+                    break;
+                }
                 default:
                     throw Error(kSyntaxTreeError, node.childern.back().token.str);
                 }
-                break;
-            }
-            case 4:
-            {
-                new_column_schema.not_null = true;
-                new_column_schema.null_default = false;
-                Node value_node = node.childern.back().childern.front();
-                if (value_node.token.token_type == kInt && new_column_schema.data_type != 0 || value_node.token.token_type == kChar && new_column_schema.data_type <= 0)
-                {
-                    throw Error(kInvalidValueError, column_name);
-                }
-                else
-                {
-                    new_column_schema.default_value = value_node.token.str;
-                }
-                break;
-            }
-            default:
-                throw Error(kSyntaxTreeError, node.childern.back().token.str);
             }
             auto rc = new_table_schema.column_schema_map.insert({column_name, new_column_schema});
             if (!rc.second)
@@ -310,7 +295,7 @@ void GDBE::execCreateTable(const Node &table_node)
             auto reference_column_iter = reference_table_iter->second.column_schema_map.find(reference_column_name);
             if (reference_column_iter == reference_table_iter->second.column_schema_map.end())
                 throw Error(kAddForeiginError, "");
-            if (reference_column_iter->second.data_type != column_iter->second.data_type || reference_column_iter->second.not_null)
+            if (reference_column_iter->second.data_type != column_iter->second.data_type || !reference_column_iter->second.not_null)
                 throw Error(kAddForeiginError, "");
             if (!column_iter->second.reference_table_name.empty() && column_iter->second.reference_table_name != reference_table_name)
                 throw Error(kAddForeiginError, "");
@@ -736,6 +721,7 @@ void GDBE::execExplain(const Node &explain_node)
         const auto &column_schema = table_schema.column_schema_map[table_schema.column_order_vector[i]];
         string_vector.push_back(std::to_string(column_schema.data_type));
         string_vector.push_back(std::to_string(column_schema.not_null));
+        string_vector.push_back(std::to_string(column_schema.unique));
         string_vector.push_back(column_schema.default_value);
         string_vector.push_back(column_schema.reference_table_name);
         string_vector.push_back(column_schema.reference_column_name);

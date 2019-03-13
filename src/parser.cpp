@@ -320,23 +320,40 @@ Node Parser::parseColumn()
     default:
         throw Error(kSqlError, lookAhead().str);
     }
-    if (lookAhead().token_type == kNot)
+    TokenType token_type;
+    while ((token_type = lookAhead().token_type) == kNot || token_type == kDefault || token_type == kUnique)
     {
-        next();
-        match(kNull);
-        build(Token(kNotNull, "NOTNULL"), &column_node);
-    }
-    if (lookAhead().token_type == kDefault)
-    {
-        Node *default_node_ptr = build(next(), &column_node);
-        switch (lookAhead().token_type)
+        switch (token_type)
         {
-        case kString:
-        case kNum:
-            build(next(), default_node_ptr);
+        case kNot:
+        {
+            next();
+            match(kNull);
+            build(Token(kNotNull, "NOTNULL"), &column_node);
             break;
+        }
+        case kDefault:
+        {
+            Node *default_node_ptr = build(next(), &column_node);
+            switch (lookAhead().token_type)
+            {
+            case kString:
+            case kNum:
+                build(next(), default_node_ptr);
+                break;
+            default:
+                throw Error(kSqlError, lookAhead().str);
+            }
+            break;
+        }
+        case kUnique:
+        {
+            build(next(), &column_node);
+            break;
+        }
+
         default:
-            throw Error(kSqlError, lookAhead().str);
+            break;
         }
     }
     return column_node;

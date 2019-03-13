@@ -40,6 +40,7 @@ enum TokenType
     kTables,
     kDefault,
     kExplain,
+    kUnique,
 
     kAnd,
     kNot,

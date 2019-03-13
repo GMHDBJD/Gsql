@@ -97,12 +97,12 @@ void Shell::showResult(const Result &result)
         std::cout << "drop table" << std::endl;
         break;
     case kExplainResult:
-        std::cout << "column_name     not_null    default_value   reference_table_name    reference_column_name" << std::endl;
+        std::cout << "column_name\tdefault_type\tnot_null\tunique\tdefault_value\treference_table_name\treference_column_name" << std::endl;
         for (auto &&i : result.string_vector_vector_)
         {
             for (auto &&j : i)
             {
-                std::cout << j << "  ";
+                std::cout << j << "\t";
             }
             std::cout << std::endl;
         }

@@ -38,6 +38,7 @@ struct ColumnSchema
     int data_type = 0;
     bool not_null = false;
     bool null_default = true;
+    bool unique = false;
     std::string default_value;
     std::string reference_table_name;
     std::string reference_column_name;

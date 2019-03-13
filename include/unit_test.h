@@ -17,7 +17,7 @@ class Test
         "CREATE DATABASE gsql;",
         "SHOW DATABASES;",
         "USE gsql;",
-        "CREATE TABLE gsql.test(id INT DEFAULT 1, test.val INT NOT NULL DEFAULT 'fdjsl', name CHAR(10), FOREIGN KEY(val) REFERENCES other(name), PRIMARY KEY(test.id,gsql.test.val));",
+        "CREATE TABLE gsql.test(id INT DEFAULT 1, test.val INT NOT NULL DEFAULT 'fdjsl' UNIQUE DEFAULT 'fls', name CHAR(10), FOREIGN KEY(val) REFERENCES other(name), PRIMARY KEY(test.id,gsql.test.val));",
         "SHOW TABLES;",
         "CREATE INDEX i ON gsql.test(gsql.test.id,val);",
         "SHOW INDEX FROM gsql.test;",
