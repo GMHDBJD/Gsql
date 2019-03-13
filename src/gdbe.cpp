@@ -55,6 +55,9 @@ void GDBE::execRoot(const Node &node)
     case kExplain:
         execExplain(node);
         break;
+    case kExit:
+        result_.type_ = kExitResult;
+        break;
     default:
         break;
     }

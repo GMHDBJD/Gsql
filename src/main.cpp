@@ -27,6 +27,8 @@ int main()
             while (result = gdbe.getResult())
             {
                 shell.showResult(result);
+                if (result.type_ == kExitResult)
+                    return 0;
             }
         }
         catch (const Error &error)

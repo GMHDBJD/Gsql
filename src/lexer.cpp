@@ -1,4 +1,6 @@
 #include "lexer.h"
+#include <algorithm>
+#include <cstring>
 
 std::queue<Token> Lexer::lex(const std::string &input)
 {
@@ -19,78 +21,83 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 str += c;
                 next();
             }
-            if (str == "CREATE")
+            std::string temp_str;
+            temp_str.resize(str.size());
+            std::transform(str.begin(), str.end(), temp_str.begin(), ::toupper);
+            if (temp_str == "CREATE")
                 token_queue.push(Token(kCreate, str));
-            else if (str == "SELECT")
+            else if (temp_str == "SELECT")
                 token_queue.push(Token(kSelect, str));
-            else if (str == "UPDATE")
+            else if (temp_str == "UPDATE")
                 token_queue.push(Token(kUpdate, str));
-            else if (str == "TABLE")
+            else if (temp_str == "TABLE")
                 token_queue.push(Token(kTable, str));
-            else if (str == "INSERT")
+            else if (temp_str == "INSERT")
                 token_queue.push(Token(kInsert, str));
-            else if (str == "INTO")
+            else if (temp_str == "INTO")
                 token_queue.push(Token(kInto, str));
-            else if (str == "DROP")
+            else if (temp_str == "DROP")
                 token_queue.push(Token(kDrop, str));
-            else if (str == "USE")
+            else if (temp_str == "USE")
                 token_queue.push(Token(kUse, str));
-            else if (str == "FROM")
+            else if (temp_str == "FROM")
                 token_queue.push(Token(kFrom, str));
-            else if (str == "SET")
+            else if (temp_str == "SET")
                 token_queue.push(Token(kSet, str));
-            else if (str == "DELETE")
+            else if (temp_str == "DELETE")
                 token_queue.push(Token(kDelete, str));
-            else if (str == "ALTER")
+            else if (temp_str == "ALTER")
                 token_queue.push(Token(kAlter, str));
-            else if (str == "JOIN")
+            else if (temp_str == "JOIN")
                 token_queue.push(Token(kJoin, str));
-            else if (str == "WHERE")
+            else if (temp_str == "WHERE")
                 token_queue.push(Token(kWhere, str));
-            else if (str == "PRIMARY")
+            else if (temp_str == "PRIMARY")
                 token_queue.push(Token(kPrimary, str));
-            else if (str == "AND")
+            else if (temp_str == "AND")
                 token_queue.push(Token(kAnd, str));
-            else if (str == "OR")
+            else if (temp_str == "OR")
                 token_queue.push(Token(kOr, str));
-            else if (str == "NOT")
+            else if (temp_str == "NOT")
                 token_queue.push(Token(kNot, str));
-            else if (str == "VALUES")
+            else if (temp_str == "VALUES")
                 token_queue.push(Token(kValues, str));
-            else if (str == "NULL")
+            else if (temp_str == "NULL")
                 token_queue.push(Token(kNull, str));
-            else if (str == "INDEX")
+            else if (temp_str == "INDEX")
                 token_queue.push(Token(kIndex, str));
-            else if (str == "DATABASE")
+            else if (temp_str == "DATABASE")
                 token_queue.push(Token(kDatabase, str));
-            else if (str == "REFERENCES")
+            else if (temp_str == "REFERENCES")
                 token_queue.push(Token(kReferences, str));
-            else if (str == "CHAR")
+            else if (temp_str == "CHAR")
                 token_queue.push(Token(kChar, str));
-            else if (str == "INT")
+            else if (temp_str == "INT")
                 token_queue.push(Token(kInt, str));
-            else if (str == "DATABASES")
+            else if (temp_str == "DATABASES")
                 token_queue.push(Token(kDatabases, str));
-            else if (str == "TABLES")
+            else if (temp_str == "TABLES")
                 token_queue.push(Token(kTables, str));
-            else if (str == "LIMIT")
+            else if (temp_str == "LIMIT")
                 token_queue.push(Token(kLimit, str));
-            else if (str == "SHOW")
+            else if (temp_str == "SHOW")
                 token_queue.push(Token(kShow, str));
-            else if (str == "ADD")
+            else if (temp_str == "ADD")
                 token_queue.push(Token(kAdd, str));
-            else if (str == "COLUMN")
+            else if (temp_str == "COLUMN")
                 token_queue.push(Token(kColumn, str));
-            else if (str == "ON")
+            else if (temp_str == "ON")
                 token_queue.push(Token(kOn, str));
-            else if (str == "KEY")
+            else if (temp_str == "KEY")
                 token_queue.push(Token(kKey, str));
-            else if (str == "FOREIGN")
+            else if (temp_str == "FOREIGN")
                 token_queue.push(Token(kForeign, str));
-            else if (str == "DEFAULT")
+            else if (temp_str == "DEFAULT")
                 token_queue.push(Token(kDefault, str));
-            else if(str=="EXPLAIN")
-                token_queue.push(Token(kExplain,str));
+            else if (temp_str == "EXPLAIN")
+                token_queue.push(Token(kExplain, str));
+            else if (temp_str == "EXIT")
+                token_queue.push(Token(kExit, str));
             else
                 token_queue.push(Token(kString, str));
         }

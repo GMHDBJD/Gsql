@@ -4,11 +4,21 @@
 #include <string>
 #include "result.h"
 #include "error.h"
+#include <readline/readline.h>
+#include <readline/history.h>
+
+static int doNothing(int count, int key)
+{
+  return 0;
+}
 
 class Shell
 {
 public:
-  Shell() = default;
+  Shell()
+  {
+    rl_bind_key('\t', doNothing);
+  }
   ~Shell() = default;
   Shell(const Shell &) = delete;
   Shell(Shell &&) = delete;

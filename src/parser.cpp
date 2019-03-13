@@ -51,6 +51,9 @@ Node Parser::parseAll()
     case kExplain:
         temp_node = parseExplain();
         break;
+    case kExit:
+        temp_node = Node(next());
+        break;
     default:
         throw Error(kSqlError, lookAhead().str);
     }

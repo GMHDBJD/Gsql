@@ -80,6 +80,7 @@ enum TokenType
     kExpr,
     kExprs,
     kJoins,
+    kExit,
 };
 
 struct Token

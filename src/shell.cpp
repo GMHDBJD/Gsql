@@ -1,22 +1,64 @@
 #include "shell.h"
-
 #include <iostream>
 
 std::string Shell::getInput()
 {
-    std::string::size_type pos = std::string::npos;
-    while ((pos = buffer.find(';')) == std::string::npos)
+    while (buffer.empty())
     {
-        if (buffer.empty())
-            std::cout << "Gsql> ";
+        char *buf = readline("Gsql> ");
+        if (strlen(buf) > 0)
+        {
+            add_history(buf);
+        }
+        buffer += buf;
+        free(buf);
+    }
+    int state = 1;
+    std::string::size_type pos = 0;
+    std::string::size_type length = buffer.size();
+    while (true)
+    {
+        if (pos == length)
+        {
+            buffer += '\n';
+            ++length;
+            char *buf = nullptr;
+            if (state == 1)
+                buf = readline("   -> ");
+            else if (state == 2)
+                buf = readline("   '>");
+            else if (state == 3)
+                buf = readline("   \">");
+            if (strlen(buf) > 0)
+            {
+                add_history(buf);
+                buffer += buf;
+                length += strlen(buf);
+            }
+            free(buf);
+        }
         else
         {
-            std::cout << "   -> ";
-            buffer += '\n';
+            if (buffer[pos] == ';' && state == 1)
+                break;
+            else if (buffer[pos] == '\'')
+            {
+                if (state == 1)
+                    state = 2;
+                else if (state == 2)
+                    state = 1;
+            }
+            else if (buffer[pos] == '"')
+            {
+                if (state == 1)
+                    state = 3;
+                else if (state == 3)
+                    state = 1;
+            }
+            else if (buffer[pos] == '\\')
+                buffer[pos] = '\n';
+            ++pos;
         }
-        std::string str;
-        std::getline(std::cin, str);
-        buffer += str;
     }
     std::string temp = buffer.substr(0, pos + 1);
     buffer = buffer.substr(pos + 1);
@@ -64,6 +106,9 @@ void Shell::showResult(const Result &result)
             }
             std::cout << std::endl;
         }
+        break;
+    case kExitResult:
+        std::cout << "bye" << std::endl;
         break;
     default:
         break;
