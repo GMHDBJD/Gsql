@@ -53,6 +53,7 @@ struct IndexSchema
 struct TableSchema
 {
     size_t root_page_num;
+    size_t max_id;
     std::vector<std::string> column_order_vector;
     std::unordered_map<std::string, ColumnSchema> column_schema_map;
     std::unordered_set<std::string> primary_set;

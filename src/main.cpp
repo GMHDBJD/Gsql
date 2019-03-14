@@ -24,7 +24,7 @@ int main()
             token_queue = lexer.lex(str);
             syntax_tree = parser.parse(std::move(token_queue));
             gdbe.exec(std::move(syntax_tree));
-            while (result = gdbe.getResult())
+            while ((result = gdbe.getResult()))
             {
                 shell.showResult(result);
                 if (result.type_ == kExitResult)

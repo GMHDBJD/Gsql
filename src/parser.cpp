@@ -73,7 +73,7 @@ Node Parser::parseShow()
     case kIndex:
         build(next(), &show_node);
         match(kFrom);
-        build(parseName(), &show_node);
+        build(parseName(2), &show_node);
         return show_node;
     default:
         throw Error(kSqlError, lookAhead().str);
@@ -84,7 +84,7 @@ Node Parser::parseUse()
 {
     Node use_node{match(kUse)};
     Node *database_node_ptr = build(Token(kDatabase, "DATABASE"), &use_node);
-    build(match(kString), database_node_ptr);
+    build(match(kStr), database_node_ptr);
     return use_node;
 }
 
@@ -96,13 +96,13 @@ Node Parser::parseCreate()
     case kDatabase:
     {
         Node *database_node_ptr = build(next(), &creat_node);
-        build(match(kString), database_node_ptr);
+        build(match(kStr), database_node_ptr);
         return creat_node;
     }
     case kTable:
     {
         Node *table_node_ptr = build(next(), &creat_node);
-        build(parseName(), table_node_ptr);
+        build(parseName(2), table_node_ptr);
         match(kLeftParenthesis);
         Node columns_node = parseColumns();
         build(columns_node, table_node_ptr);
@@ -112,9 +112,9 @@ Node Parser::parseCreate()
     case kIndex:
     {
         Node *index_node_ptr = build(next(), &creat_node);
-        build(match(kString), index_node_ptr);
+        build(match(kStr), index_node_ptr);
         match(kOn);
-        Node *name_node_ptr = build(parseName(), index_node_ptr);
+        Node *name_node_ptr = build(parseName(2), index_node_ptr);
         match(kLeftParenthesis);
         build(parseNames(), index_node_ptr);
         match(kRightParenthesis);
@@ -129,7 +129,7 @@ Node Parser::parseInsert()
 {
     Node insert_node{match(kInsert)};
     match(kInto);
-    build(parseName(), &insert_node);
+    build(parseName(2), &insert_node);
 
     if (lookAhead().token_type == kLeftParenthesis)
     {
@@ -159,7 +159,7 @@ Node Parser::parseSelect()
     }
     }
     match(kFrom);
-    build(parseName(), &select_node);
+    build(parseName(2), &select_node);
     if (lookAhead().token_type == kJoin)
         build(parseJoins(), &select_node);
     if (lookAhead().token_type == kWhere)
@@ -176,7 +176,7 @@ Node Parser::parseDelete()
 {
     Node delete_node{match(kDelete)};
     match(kFrom);
-    build(parseName(), &delete_node);
+    build(parseName(2), &delete_node);
     if (lookAhead().token_type == kWhere)
         build(parseWhere(), &delete_node);
     return delete_node;
@@ -191,15 +191,15 @@ Node Parser::parseDrop()
     case kTable:
     {
         Node *node_ptr = build(next(), &drop_node);
-        build(parseName(), node_ptr);
+        build(parseName(2), node_ptr);
         return drop_node;
     }
     case kIndex:
     {
         Node *index_node_ptr = build(next(), &drop_node);
-        build(match(kString), index_node_ptr);
+        build(match(kStr), index_node_ptr);
         match(kOn);
-        build(parseName(), index_node_ptr);
+        build(parseName(2), index_node_ptr);
     }
     default:
         throw Error(kSqlError, lookAhead().str);
@@ -209,7 +209,7 @@ Node Parser::parseDrop()
 Node Parser::parseUpdate()
 {
     Node update_node{match(kUpdate)};
-    build(parseName(), &update_node);
+    build(parseName(2), &update_node);
     match(kSet);
     build(parseExprs(), &update_node);
     if (lookAhead().token_type == kWhere)
@@ -221,7 +221,7 @@ Node Parser::parseAlter()
 {
     Node alter_node{match(kAlter)};
     match(kTable);
-    build(parseName(), &alter_node);
+    build(parseName(2), &alter_node);
     switch (lookAhead().token_type)
     {
     case kAdd:
@@ -234,7 +234,7 @@ Node Parser::parseAlter()
     {
         Node *drop_node_ptr = build(next(), &alter_node);
         match(kColumn);
-        build(parseName(), drop_node_ptr);
+        build(parseName(3), drop_node_ptr);
         return alter_node;
     }
     case kAlter:
@@ -287,12 +287,12 @@ Node Parser::parseForeign()
     Node foreign_node{match(kForeign)};
     match(kKey);
     match(kLeftParenthesis);
-    build(parseName(), &foreign_node);
+    build(parseName(3), &foreign_node);
     match(kRightParenthesis);
     match(kReferences);
-    build(parseName(), &foreign_node);
+    build(parseName(2), &foreign_node);
     match(kLeftParenthesis);
-    build(parseName(), &foreign_node);
+    build(parseName(3), &foreign_node);
     match(kRightParenthesis);
     return foreign_node;
 }
@@ -300,7 +300,7 @@ Node Parser::parseForeign()
 Node Parser::parseColumn()
 {
     Node column_node{Token(kColumn, "COLUMN")};
-    build(parseName(), &column_node);
+    build(parseName(3), &column_node);
     switch (lookAhead().token_type)
     {
     case kInt:
@@ -359,14 +359,18 @@ Node Parser::parseColumn()
     return column_node;
 }
 
-Node Parser::parseName()
+Node Parser::parseName(size_t count)
 {
+    size_t cnt = 1;
     Node name_node{Token(kName, "NAME")};
-    build(match(kString), &name_node);
+    build(match(kStr), &name_node);
     while (lookAhead().token_type == kFullStop)
     {
         next();
-        build(match(kString), &name_node);
+        ++cnt;
+        if (cnt > count)
+            throw Error(kSqlError, ".");
+        build(match(kStr), &name_node);
     }
     return name_node;
 }
@@ -374,11 +378,11 @@ Node Parser::parseName()
 Node Parser::parseNames()
 {
     Node names_node{Token(kNames, "NAMES")};
-    build(parseName(), &names_node);
+    build(parseName(3), &names_node);
     while (lookAhead().token_type == kComma)
     {
         next();
-        build(parseName(), &names_node);
+        build(parseName(3), &names_node);
     }
     return names_node;
 }
@@ -584,13 +588,14 @@ Node Parser::parseItem()
     }
     case kNum:
     case kNull:
+    case kString:
     {
         item_node = Node(next());
         return item_node;
     }
-    case kString:
+    case kStr:
     {
-        item_node = parseName();
+        item_node = parseName(3);
         return item_node;
     }
     default:
@@ -613,7 +618,7 @@ Node Parser::parseJoins()
 Node Parser::parseJoin()
 {
     Node join_node{next()};
-    build(parseName(), &join_node);
+    build(parseName(2), &join_node);
     if (lookAhead().token_type == kOn)
     {
         next();
@@ -632,6 +637,6 @@ Node Parser::parseWhere()
 Node Parser::parseExplain()
 {
     Node explain_node{match(kExplain)};
-    build(parseName(), &explain_node);
+    build(parseName(2), &explain_node);
     return explain_node;
 }

@@ -21,7 +21,10 @@ enum ErrorType
   kMultiplePrimaryKeyError,
   kNoDatabaseSelectError,
   kOperationError,
-  kInvalidValueError
+  kInvalidDefaultValueError,
+  kColumnCountNotMatch,
+  kIncorrectValueError,
+  kIncorrectIntegerValue
 };
 
 class Error : public std::exception

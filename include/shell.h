@@ -4,13 +4,10 @@
 #include <string>
 #include "result.h"
 #include "error.h"
+#include "utility.h"
 #include <readline/readline.h>
 #include <readline/history.h>
 
-static int doNothing(int count, int key)
-{
-  return 0;
-}
 
 class Shell
 {

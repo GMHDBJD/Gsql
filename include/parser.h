@@ -26,7 +26,6 @@ private:
   SyntaxTree syntax_tree_;
   std::queue<Token> token_queue_;
 
-
   Node parseAll();
   Node parseShow();
   Node parseUse();
@@ -56,7 +55,7 @@ private:
   Node parseNotOrBitsNegative();
   Node parseItem();
   Node parseNames();
-  Node parseName();
+  Node parseName(size_t count);
   Node parseJoins();
   Node parseJoin();
   Node parseWhere();

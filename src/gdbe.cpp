@@ -19,6 +19,10 @@ Result GDBE::getResult()
         result_.string_vector_vector_.clear();
         return std::move(temp_result);
     }
+    else
+    {
+        return result_;
+    }
 }
 
 void GDBE::execRoot(const Node &node)
@@ -203,7 +207,7 @@ void GDBE::execCreateTable(const Node &table_node)
 {
     if (database_name_.empty())
         throw Error(kNoDatabaseSelectError, "");
-    std::string table_name = getTableName(table_node.childern.front());
+    std::string table_name = getTableName(table_node.childern.front(), database_name_);
     if (database_schema_.table_schema_map.find(table_name) != database_schema_.table_schema_map.end())
         throw Error(kTableExistError, table_name);
     TableSchema new_table_schema;
@@ -213,7 +217,7 @@ void GDBE::execCreateTable(const Node &table_node)
         if (node.token.token_type == kColumn)
         {
             ColumnSchema new_column_schema;
-            std::string column_name = getColumnName(node.childern.front(), table_name);
+            std::string column_name = getColumnName(node.childern.front(), database_name_, table_name);
             switch (node.childern[1].token.token_type)
             {
             case kInt:
@@ -224,7 +228,7 @@ void GDBE::execCreateTable(const Node &table_node)
                 if (node.childern[1].childern.empty())
                     new_column_schema.data_type = 1;
                 else
-                    new_column_schema.data_type = node.childern[1].childern.size();
+                    new_column_schema.data_type = node.childern[1].childern.front().token.num;
                 break;
             }
             default:
@@ -251,14 +255,18 @@ void GDBE::execCreateTable(const Node &table_node)
                 {
                     new_column_schema.null_default = false;
                     Node value_node = node.childern.back().childern.front();
-                    if (value_node.token.token_type == kInt && new_column_schema.data_type != 0 || value_node.token.token_type == kChar && new_column_schema.data_type <= 0)
+                    try
                     {
-                        throw Error(kInvalidValueError, column_name);
+                        if (value_node.token.token_type == kString && new_column_schema.data_type == 0)
+                            convertInt(value_node.token);
+                        else if ((value_node.token.token_type == kNum && new_column_schema.data_type != 0))
+                            convertString(value_node.token);
                     }
-                    else
+                    catch (const Error &e)
                     {
-                        new_column_schema.default_value = value_node.token.str;
+                        throw Error(kInvalidDefaultValueError, column_name);
                     }
+                    new_column_schema.default_value = value_node.token.str;
                     break;
                 }
                 case kUnique:
@@ -283,9 +291,9 @@ void GDBE::execCreateTable(const Node &table_node)
         if (node.token.token_type == kForeign)
         {
             const Node &names_node = node.childern.front();
-            std::string column_name = getColumnName(node.childern[0], table_name);
-            std::string reference_table_name = getTableName(node.childern[1]);
-            std::string reference_column_name = getColumnName(node.childern[2], reference_table_name);
+            std::string column_name = getColumnName(node.childern[0], database_name_, table_name);
+            std::string reference_table_name = getTableName(node.childern[1], database_name_);
+            std::string reference_column_name = getColumnName(node.childern[2], database_name_, reference_table_name);
             auto column_iter = new_table_schema.column_schema_map.find(column_name);
             if (column_iter == new_table_schema.column_schema_map.end())
                 throw Error(kAddForeiginError, "");
@@ -311,7 +319,7 @@ void GDBE::execCreateTable(const Node &table_node)
             const Node &names_node = node.childern.front();
             for (const auto &name_node : names_node.childern)
             {
-                std::string column_name = getColumnName(name_node, table_name);
+                std::string column_name = getColumnName(name_node, database_name_, table_name);
                 if (new_table_schema.column_schema_map.find(column_name) == new_table_schema.column_schema_map.end())
                     throw Error(kColumnNotExistError, column_name);
                 auto rc = new_table_schema.primary_set.insert(column_name);
@@ -320,6 +328,7 @@ void GDBE::execCreateTable(const Node &table_node)
             }
         }
     }
+    new_table_schema.max_id = 0;
     new_table_schema.root_page_num = createNewPage();
     database_schema_.table_schema_map[table_name] = new_table_schema;
     updateDatabaseSchema();
@@ -344,7 +353,7 @@ void GDBE::execDropTable(const Node &table_node)
     if (database_name_.empty())
         throw Error(kNoDatabaseSelectError, "");
     const Node &name_node = table_node.childern.front();
-    std::string table_name = getTableName(name_node);
+    std::string table_name = getTableName(name_node, database_name_);
     auto table_iter = database_schema_.table_schema_map.find(table_name);
     if (table_iter == database_schema_.table_schema_map.end())
         throw Error(kTableNotExistError, table_name);
@@ -365,338 +374,418 @@ void GDBE::execInsert(const Node &insert_node)
     if (database_name_.empty())
         throw Error(kNoDatabaseSelectError, "");
     const Node &name_node = insert_node.childern.front();
-    std::string table_name = getTableName(name_node);
-    if (database_schema_.table_schema_map.find(table_name) == database_schema_.table_schema_map.end())
+    std::string table_name = getTableName(name_node, database_name_);
+    auto table_scheam_iter = database_schema_.table_schema_map.find(table_name);
+    if (table_scheam_iter == database_schema_.table_schema_map.end())
         throw Error(kTableNotExistError, table_name);
-    switch (insert_node.childern.size())
+    std::unordered_map<std::string, size_t> name_pos_map;
+    if (insert_node.childern.size() == 3)
     {
-    case 2:
-    {
-        std::unordered_map<std::string, Node> name_value_map;
-        const Node &values_node = insert_node.childern.back();
-        for (const auto &exprs_node : values_node.childern)
+        int pos = 0;
+        for (auto &&name_node : insert_node.childern[1].childern)
         {
-            for (size_t i = 0; i < exprs_node.childern.size(); i++)
-            {
-                const auto &expr_node = exprs_node.childern[i];
-                Node node = eval(expr_node.childern.front(), table_name, name_value_map);
-            }
+            std::string column_name = getColumnName(name_node, database_name_, table_name);
+            if (database_schema_.table_schema_map[table_name].column_schema_map.find(column_name) == database_schema_.table_schema_map[table_name].column_schema_map.end())
+                throw Error(kColumnNotExistError, column_name);
+            if (name_pos_map.find(column_name) == name_pos_map.end())
+                throw Error(kDuplicateColumnError, column_name);
+            name_pos_map[column_name] = pos++;
         }
-
-        break;
     }
-    default:
-        break;
+    else
+    {
+        int pos = 0;
+        for (auto &&name : database_schema_.table_schema_map[table_name].column_order_vector)
+        {
+            name_pos_map[name] = pos++;
+        }
+    }
+    int row = 0;
+    for (const auto &exprs_node : insert_node.childern.back().childern)
+    {
+        ++row;
+        if (exprs_node.childern.size() != name_pos_map.size())
+            throw Error(kColumnCountNotMatch, std::to_string(row));
+        std::vector<Token> values;
+        std::unordered_map<std::string, Token> name_value_map;
+        std::vector<size_t> values_size;
+        values_size.push_back(0);
+        size_t id = table_scheam_iter->second.max_id++;
+        values.push_back(Token(kNum, std::to_string(id), id));
+        for (auto &&column_name : database_schema_.table_schema_map[table_name].column_order_vector)
+        {
+            const ColumnSchema &column_schema = database_schema_.table_schema_map[table_name].column_schema_map[column_name];
+            size_t pos = name_pos_map[column_name];
+            Token value_token = eval(exprs_node.childern[pos].childern.front(), table_name, name_value_map);
+            if (column_schema.data_type == 0 && value_token.token_type == kString)
+            {
+                try
+                {
+                    convertInt(value_token);
+                }
+                catch (const Error &e)
+                {
+                    throw Error(kIncorrectIntegerValue, "\"" + value_token.str + "\"" + " for column " + column_name + " at row " + std::to_string(row));
+                }
+            }
+            else if (column_schema.data_type > 0 && value_token.token_type == kNum)
+            {
+                convertString(value_token);
+            }
+            values.push_back(value_token);
+            values_size.push_back(column_schema.data_type);
+        }
+        char *key_ptr = new char[kSizeOfSizeT];
+        std::copy(reinterpret_cast<const char *>(&id), reinterpret_cast<const char *>(&id) + kSizeOfSizeT, key_ptr);
+        size_t size = getValueSize(values_size);
+        char *values_ptr = new char[size];
+        serilization(values, values_size, values_ptr);
     }
 }
 
-Node GDBE::eval(const Node &node, const std::string &table_name, const std::unordered_map<std::string, Node> &name_value_map)
+Token GDBE::eval(const Node &node, const std::string &table_name, const std::unordered_map<std::string, Token> &name_value_map)
 {
     switch (node.token.token_type)
     {
     case kAnd:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num && right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num && right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kNot:
     {
-        Node next_node = eval(node.childern.front(), table_name, name_value_map);
-        if (next_node.token.token_type == kNum)
+        Token next_token = eval(node.childern.front(), table_name, name_value_map);
+        convertInt(next_token);
+        if (next_token.token_type == kNum)
         {
-            int result = !next_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = !next_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (next_node.token.token_type == kNull)
-            return next_node;
+        else if (next_token.token_type == kNull)
+            return next_token;
         else
             throw Error(kOperationError, "");
     }
     case kOr:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num || right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num || right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
-        else if (left_node.token.token_type == kNum && right_node.token.token_type == kNull)
-            return Node(Token(kNum, std::to_string(left_node.token.num != 0), left_node.token.num != 0));
-        else if (left_node.token.token_type == kNull && right_node.token.token_type == kNum)
-            return Node(Token(kNum, std::to_string(right_node.token.num != 0), right_node.token.num != 0));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
+        else if (left_token.token_type == kNum && right_token.token_type == kNull)
+            return Token(kNum, std::to_string(left_token.num != 0), left_token.num != 0);
+        else if (left_token.token_type == kNull && right_token.token_type == kNum)
+            return Token(kNum, std::to_string(right_token.num != 0), right_token.num != 0);
         else
             throw Error(kOperationError, "");
     }
     case kLess:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num < right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num < right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kGreater:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num > right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num > right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kLessEqual:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num <= right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num <= right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kGreaterEqual:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num >= right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num >= right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kEqual:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num == right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num == right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kNotEqual:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num != right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num != right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kPlus:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num + right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num + right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kMinus:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num - right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num - right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kMultiply:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num * right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num * right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kDivide:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num / right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num / right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kMod:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num % right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num % right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kShiftLeft:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num << right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num << right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kShiftRight:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num >> right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num >> right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kBitsExclusiveOr:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num ^ right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num ^ right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kBitsAnd:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num & right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num & right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kBitsOr:
     {
-        Node left_node = eval(node.childern.front(), table_name, name_value_map);
-        Node right_node = eval(node.childern.back(), table_name, name_value_map);
-        if (left_node.token.token_type == kNum && right_node.token.token_type == kNum)
+        Token left_token = eval(node.childern.front(), table_name, name_value_map);
+        Token right_token = eval(node.childern.back(), table_name, name_value_map);
+        convertInt(left_token);
+        convertInt(right_token);
+        if (left_token.token_type == kNum && right_token.token_type == kNum)
         {
-            int result = left_node.token.num | right_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = left_token.num | right_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (left_node.token.token_type == kNull || right_node.token.token_type == kNull)
-            return Node(Token(kNull, "NULL"));
+        else if (left_token.token_type == kNull || right_token.token_type == kNull)
+            return Token(kNull, "NULL");
         else
             throw Error(kOperationError, "");
     }
     case kBitsNot:
     {
-        Node next_node = eval(node.childern.front(), table_name, name_value_map);
-        if (next_node.token.token_type == kNum)
+        Token next_token = eval(node.childern.front(), table_name, name_value_map);
+        convertInt(next_token);
+        if (next_token.token_type == kNum)
         {
-            int result = ~next_node.token.num;
-            return Node(Token(kNum, std::to_string(result), result));
+            int result = ~next_token.num;
+            return Token(kNum, std::to_string(result), result);
         }
-        else if (next_node.token.token_type == kNull)
-            return next_node;
+        else if (next_token.token_type == kNull)
+            return next_token;
         else
             throw Error(kOperationError, "");
     }
     case kNum:
     case kNull:
     case kString:
-    {
-        return node;
-    }
+        return node.token;
     case kName:
     {
-        std::string column_name = getColumnName(node, table_name);
+        std::string column_name = getColumnName(node, database_name_, table_name);
         const auto &iter = database_schema_.table_schema_map[table_name].column_schema_map.find(column_name);
         if (iter == database_schema_.table_schema_map[column_name].column_schema_map.end())
             throw Error(kColumnNotExistError, column_name);
         const auto &name_value_map_iter = name_value_map.find(column_name);
         if (name_value_map_iter != name_value_map.end())
-            return Node(name_value_map_iter->second);
+            return name_value_map_iter->second;
         else
         {
             if (iter->second.data_type == 0)
-                return Node(Token(kInt, iter->second.default_value, std::stoi(iter->second.default_value)));
+                return Token(kNum, iter->second.default_value, std::stoi(iter->second.default_value));
             else if (iter->second.data_type > 0)
-                return Node(Token(kChar, iter->second.default_value));
+                return Token(kString, iter->second.default_value);
         }
     }
     default:
@@ -709,7 +798,7 @@ void GDBE::execExplain(const Node &explain_node)
     if (database_name_.empty())
         throw Error(kNoDatabaseSelectError, "");
     const Node &name_node = explain_node.childern.front();
-    std::string table_name = getTableName(name_node);
+    std::string table_name = getTableName(name_node, database_name_);
     auto table_iter = database_schema_.table_schema_map.find(table_name);
     if (table_iter == database_schema_.table_schema_map.end())
         throw Error(kTableNotExistError, table_name);

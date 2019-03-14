@@ -10,6 +10,7 @@
 #include "logger.h"
 #include "database_schema.h"
 #include "stream.h"
+#include "utility.h"
 
 const std::string kDatabaseDir = "database/";
 
@@ -43,56 +44,21 @@ public:
   void execDropTable(const Node &);
   void execDropIndex(const Node &){};
   void execExplain(const Node &);
-  Node eval(const Node &, const std::string &, const std::unordered_map<std::string, Node> &);
-  std::string getTableName(const Node &name_node)
+ 
+  size_t getValueSize(const std::vector<size_t> &values_size)
   {
-    switch (name_node.childern.size())
+    size_t size = 0;
+    size += (values_size.size() - 1) * kSizeOfBool;
+    for (auto &&i : values_size)
     {
-    case 1:
-      return name_node.childern.front().token.str;
-    case 2:
-    case 3:
-      if (name_node.childern.front().token.str != database_name_)
-        throw Error(kIncorrectDatabaseNameError, name_node.childern.front().token.str);
-      return name_node.childern[1].token.str;
-    default:
-      throw Error(kIncorrectNameError, name_node.token.str);
+      if (i == 0)
+        size += kSizeOfSizeT;
+      else
+        size += i;
     }
+    return size;
   }
-  std::string getColumnName(const Node &name_node, const std::string &table_name = "")
-  {
-    switch (name_node.childern.size())
-    {
-    case 1:
-      return name_node.childern.front().token.str;
-    case 3:
-      if (name_node.childern.front().token.str != database_name_)
-        throw Error(kIncorrectDatabaseNameError, name_node.childern.front().token.str);
-      if (!table_name.empty() && name_node.childern[1].token.str != table_name)
-        throw Error(kIncorrectTableNameError, name_node.childern[1].token.str);
-      return name_node.childern.back().token.str;
-    case 2:
-      if (!table_name.empty() && name_node.childern.front().token.str != table_name)
-        throw Error(kIncorrectTableNameError, name_node.childern.front().token.str);
-      return name_node.childern.back().token.str;
-    default:
-      throw Error(kIncorrectNameError, name_node.token.str);
-    }
-  }
-  std::string getBothTableName(const Node &name_node)
-  {
-    switch (name_node.childern.size())
-    {
-    case 2:
-      return name_node.childern.front().token.str;
-    case 3:
-      if (name_node.childern.front().token.str != database_name_)
-        throw Error(kIncorrectDatabaseNameError, name_node.childern.front().token.str);
-      return name_node.childern[1].token.str;
-    default:
-      throw Error(kIncorrectNameError, name_node.token.str);
-    }
-  }
+  Token eval(const Node &, const std::string &, const std::unordered_map<std::string, Token> &);
 
   size_t getFreePage()
   {
@@ -120,7 +86,7 @@ public:
       page_ptr_vector.push_back(buffer_pool_.getPage(i));
     }
     Stream stream(page_ptr_vector);
-    stream<<database_schema_;
+    stream << database_schema_;
     for (size_t i = 0; i < page_ptr_vector.size(); ++i)
       file_system_.write(database_schema_.page_vector[i], page_ptr_vector[i]);
   }
@@ -140,7 +106,7 @@ public:
   void insertRootPage(size_t root_page_num, char *key_value, size_t key_size, char *data_value, size_t data_size)
   {
     PagePtr page = buffer_pool_.getPage(root_page_num);
-    char* node = page->buffer;
+    char *node = page->buffer;
     bool leaf = *reinterpret_cast<bool *>(node);
     size_t size = *reinterpret_cast<size_t *>(node + kSizeOfBool);
     if (pageIsFull(size, key_size, data_size))
@@ -162,7 +128,6 @@ public:
   {
     PagePtr page = buffer_pool_.getPage(page_num);
   }
-
 private:
   QueryOptimizer query_optimizer_;
   BufferPool &buffer_pool_;

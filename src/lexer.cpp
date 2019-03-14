@@ -101,7 +101,7 @@ std::queue<Token> Lexer::lex(const std::string &input)
             else if (temp_str == "EXIT")
                 token_queue.push(Token(kExit, str));
             else
-                token_queue.push(Token(kString, str));
+                token_queue.push(Token(kStr, str));
         }
         else if (isdigit(c))
         {

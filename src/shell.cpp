@@ -167,6 +167,9 @@ void Shell::showError(const Error &error)
     case kMultiplePrimaryKeyError:
         std::cout << "multiple primary key" << std::endl;
         break;
+    case kInvalidDefaultValueError:
+        std::cout << "invalid default value for column '" << error.what() << "' " << std::endl;
+        break;
     default:
         break;
     }

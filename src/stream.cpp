@@ -14,7 +14,7 @@ Stream &operator>>(Stream &stream, Settings &settings)
 
 Stream &operator>>(Stream &stream, TableSchema &table_schema)
 {
-  stream >> table_schema.root_page_num >> table_schema.column_order_vector >> table_schema.column_schema_map >> table_schema.primary_set >> table_schema.index_schema_map;
+  stream >> table_schema.root_page_num >> table_schema.max_id >> table_schema.column_order_vector >> table_schema.column_schema_map >> table_schema.primary_set >> table_schema.index_schema_map;
   return stream;
 }
 
@@ -44,7 +44,7 @@ Stream &operator<<(Stream &stream, const Settings &settings)
 
 Stream &operator<<(Stream &stream, const TableSchema &table_schema)
 {
-  stream << table_schema.root_page_num << table_schema.column_order_vector << table_schema.column_schema_map << table_schema.primary_set << table_schema.index_schema_map;
+  stream << table_schema.root_page_num << table_schema.max_id << table_schema.column_order_vector << table_schema.column_schema_map << table_schema.primary_set << table_schema.index_schema_map;
   return stream;
 }
 
@@ -92,7 +92,7 @@ size_t getSize(const DatabaseSchema &database_schema)
 
 size_t getSize(const TableSchema &table_schema)
 {
-  return getSize(table_schema.root_page_num) + getSize(table_schema.column_order_vector) + getSize(table_schema.column_schema_map) + getSize(table_schema.primary_set) + getSize(table_schema.index_schema_map);
+  return getSize(table_schema.root_page_num) + getSize(table_schema.max_id) + getSize(table_schema.column_order_vector) + getSize(table_schema.column_schema_map) + getSize(table_schema.primary_set) + getSize(table_schema.index_schema_map);
 }
 
 size_t getSize(const ColumnSchema &column_schema)
