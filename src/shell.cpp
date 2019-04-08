@@ -67,10 +67,10 @@ std::string Shell::getInput()
 
 void Shell::showResult(const Result &result)
 {
-    switch (result.type_)
+    switch (result.type)
     {
     case kShowDatabasesResult:
-        for (auto &&i : result.string_vector_vector_.front())
+        for (auto &&i : result.string_vector_vector.front())
         {
             std::cout << i << std::endl;
         }
@@ -82,7 +82,7 @@ void Shell::showResult(const Result &result)
         std::cout << "create database" << std::endl;
         break;
     case kShowTablesResult:
-        for (auto &&i : result.string_vector_vector_.front())
+        for (auto &&i : result.string_vector_vector.front())
         {
             std::cout << i << std::endl;
         }
@@ -98,7 +98,7 @@ void Shell::showResult(const Result &result)
         break;
     case kExplainResult:
         std::cout << "column_name\tdefault_type\tnot_null\tunique\tdefault_value\treference_table_name\treference_column_name" << std::endl;
-        for (auto &&i : result.string_vector_vector_)
+        for (auto &&i : result.string_vector_vector)
         {
             for (auto &&j : i)
             {
@@ -109,6 +109,16 @@ void Shell::showResult(const Result &result)
         break;
     case kExitResult:
         std::cout << "bye" << std::endl;
+        break;
+    case kSelectResult:
+        for (auto &&i : result.string_vector_vector)
+        {
+            for (auto &&j : i)
+            {
+                std::cout << j << "\t";
+            }
+            std::cout << std::endl;
+        }
         break;
     default:
         break;
@@ -169,6 +179,31 @@ void Shell::showError(const Error &error)
         break;
     case kInvalidDefaultValueError:
         std::cout << "invalid default value for column '" << error.what() << "' " << std::endl;
+        break;
+    case kOperationError:
+        std::cout << "invalid operation" << std::endl;
+        break;
+    case kColumnCountNotMatchError:
+        std::cout << "column count not match in row " << error.what() << std::endl;
+        break;
+    case kIncorrectValueError:
+        std::cout << "incorrect value " << error.what() << std::endl;
+        break;
+    case kIncorrectIntegerValue:
+        std::cout << "incorrect interger value " << error.what() << std::endl;
+        break;
+    case kNotUniqueTableError:
+        std::cout << "table '" << error.what() << "' "
+                  << "not unique" << std::endl;
+        break;
+    case kColumnAmbiguousError:
+        std::cout << "column '" << error.what() << "' is ambiguous" << std::endl;
+        break;
+    case kUnkownColumnError:
+        std::cout << "unkown column " << error.what() << std::endl;
+        break;
+    case kNameNoValueError:
+        std::cout << "no value match column '" << error.what() << std::endl;
         break;
     default:
         break;

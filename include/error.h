@@ -22,9 +22,14 @@ enum ErrorType
   kNoDatabaseSelectError,
   kOperationError,
   kInvalidDefaultValueError,
-  kColumnCountNotMatch,
+  kColumnCountNotMatchError,
   kIncorrectValueError,
-  kIncorrectIntegerValue
+  kIncorrectIntegerValue,
+  kNotUniqueTableError,
+  kColumnAmbiguousError,
+  kUnkownColumnError,
+  kNameNoValueError
+
 };
 
 class Error : public std::exception

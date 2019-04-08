@@ -54,7 +54,7 @@ private:
   Node parseMultiplyDivideMod();
   Node parseNotOrBitsNegative();
   Node parseItem();
-  Node parseNames();
+  Node parseNames(size_t count);
   Node parseName(size_t count);
   Node parseJoins();
   Node parseJoin();

@@ -13,7 +13,7 @@ int main()
     Shell shell;
     Lexer lexer;
     Parser parser;
-    GDBE gdbe;
+    GDBE &gdbe = GDBE::getInstance();
     Result result;
 
     while (true)
@@ -27,7 +27,7 @@ int main()
             while ((result = gdbe.getResult()))
             {
                 shell.showResult(result);
-                if (result.type_ == kExitResult)
+                if (result.type == kExitResult)
                     return 0;
             }
         }

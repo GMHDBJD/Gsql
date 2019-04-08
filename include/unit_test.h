@@ -23,9 +23,9 @@ class Test
         "SHOW INDEX FROM gsql.test;",
         "INSERT INTO test VALUES(1,NULL,'fsd'),(2,4,NULL);",
         "INSERT INTO gsql.test(test.id,gsql.test.val)VALUES(1+5,NULL);",
-        "SELECT * FROM test WHERE id>=5 AND id<=9 LIMIT 100;",
+        "SELECT *,id FROM test, other, another WHERE id>=5 AND id<=9 LIMIT 100;",
         "SELECT test.id FROM test;",
-        "SELECT 9*9-(8+5)=8*4/5 FROM test JOIN other ON test.name=other.name;",
+        "SELECT 9*9-(8+5)=8*4/5 FROM test JOIN other ON test.name=other.name JOIN another on other.val = another.val where test.id=1;",
         "UPDATE test SET id=id&1;",
         "DELETE FROM test WHERE id>6;",
         "ALTER TABLE test ADD str CHAR;",
@@ -90,7 +90,7 @@ class Test
                 {
                     Node current = q.front();
                     q.pop();
-                    for (auto &&child : current.childern)
+                    for (auto &&child : current.children)
                     {
                         fout << c << "((";
                         if (current.token.token_type == kNum)

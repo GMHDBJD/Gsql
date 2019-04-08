@@ -89,14 +89,13 @@ struct Token
 {
     Token(TokenType t = kNone, const std::string &s = "", int n = 0) : token_type(t), str(s), num(n){};
     TokenType token_type;
-    int num;
+    long num;
     std::string str;
     operator bool()
     {
         return token_type != kNone;
         std::vector<int> v;
-    
-    }
+        }
 };
 
 #endif

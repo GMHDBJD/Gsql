@@ -12,14 +12,14 @@ public:
   BufferPool(BufferPool &&) noexcept = delete;
   ~BufferPool() {}
   static BufferPool &getInstance();
-  PagePtr getPage(size_t page_num, bool allocate = false)
+  PagePtr getPage(size_t page_id, bool allocate = false)
   {
     if (allocate)
       return PagePtr(new Page);
     else
     {
       PagePtr page_ptr(new Page);
-      file_system_.read(page_num, page_ptr);
+      file_system_.read(page_id, page_ptr);
       return page_ptr;
     }
   }

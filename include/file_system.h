@@ -10,14 +10,14 @@ namespace fs = std::experimental::filesystem;
 class FileSystem
 {
 public:
-  void read(size_t page_num, PagePtr page_ptr)
+  void read(size_t page_id, PagePtr page_ptr)
   {
-    file_.seekg(page_num * kPageSize);
+    file_.seekg(page_id * kPageSize);
     file_.read(page_ptr->buffer, kPageSize);
   };
-  void write(size_t page_num, PagePtr page_ptr)
+  void write(size_t page_id, PagePtr page_ptr)
   {
-    file_.seekp(page_num * kPageSize);
+    file_.seekp(page_id * kPageSize);
     file_.write(page_ptr->buffer, kPageSize);
     file_.flush();
   }

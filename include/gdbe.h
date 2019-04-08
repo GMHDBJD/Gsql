@@ -7,7 +7,6 @@
 #include "query_optimizer.h"
 #include "buffer_pool.h"
 #include "file_system.h"
-#include "logger.h"
 #include "database_schema.h"
 #include "stream.h"
 #include "utility.h"
@@ -17,19 +16,19 @@ const std::string kDatabaseDir = "database/";
 class GDBE
 {
 public:
-  GDBE() : buffer_pool_(BufferPool::getInstance()), file_system_(FileSystem::getInstance()), logger_(Logger::getInstance()) {}
   ~GDBE() = default;
+  static GDBE &getInstance();
   GDBE(const GDBE &) = delete;
   GDBE(GDBE &&) = delete;
   GDBE &operator=(GDBE) = delete;
   void exec(SyntaxTree);
   Result getResult();
-  void execRoot(const Node &);
+  void execRoot(Node &);
   void execCreate(const Node &);
   void execShow(const Node &);
   void execUse(const Node &);
-  void execInsert(const Node &);
-  void execSelect(const Node &){};
+  void execInsert(Node &);
+  void execSelect(Node &);
   void execUpdate(const Node &){};
   void execDelete(const Node &){};
   void execAlter(const Node &){};
@@ -44,21 +43,33 @@ public:
   void execDropTable(const Node &);
   void execDropIndex(const Node &){};
   void execExplain(const Node &);
- 
-  size_t getValueSize(const std::vector<size_t> &values_size)
+  size_t getExprDataType(const Node &node)
+  {
+    if (node.token.token_type == kName)
+    {
+      int data_type = database_schema_.table_schema_map[node.children.front().token.str].column_schema_map[node.children.back().token.str].data_type;
+      return data_type;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+
+  size_t getValueSize(const std::unordered_map<std::string, ColumnSchema> &column_schema_map)
   {
     size_t size = 0;
-    size += (values_size.size() - 1) * kSizeOfBool;
-    for (auto &&i : values_size)
+    size += (column_schema_map.size() + 1) * kSizeOfBool;
+    size += kSizeOfSizeT;
+    for (auto &&i : column_schema_map)
     {
-      if (i == 0)
+      if (i.second.data_type == 0)
         size += kSizeOfSizeT;
       else
-        size += i;
+        size += i.second.data_type;
     }
     return size;
   }
-  Token eval(const Node &, const std::string &, const std::unordered_map<std::string, Token> &);
 
   size_t getFreePage()
   {
@@ -91,48 +102,89 @@ public:
       file_system_.write(database_schema_.page_vector[i], page_ptr_vector[i]);
   }
 
-  size_t createNewPage()
-  {
-    size_t new_page_num = getFreePage();
-    PagePtr page_ptr = buffer_pool_.getPage(new_page_num, true);
-    char *new_page = page_ptr->buffer;
-    bool leaf = true;
-    size_t size = 0;
-    std::copy(reinterpret_cast<const char *>(&leaf), reinterpret_cast<const char *>(&leaf + kSizeOfBool), new_page);
-    std::copy(reinterpret_cast<const char *>(&size), reinterpret_cast<const char *>(&size + kSizeOfSizeT), new_page + kSizeOfBool);
-    return new_page_num;
-  }
+  size_t splitFullPage(size_t page_id, char *middle_key);
 
-  void insertRootPage(size_t root_page_num, char *key_value, size_t key_size, char *data_value, size_t data_size)
+  void selectRecursive(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::vector<Node> &select_expr_vector);
+  void selectRecursiveAux(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::vector<Node> &select_expr_vector);
+  std::pair<std::string, std::pair<Token, Token>> getCondition(std::vector<Node> &expr_vector)
   {
-    PagePtr page = buffer_pool_.getPage(root_page_num);
-    char *node = page->buffer;
-    bool leaf = *reinterpret_cast<bool *>(node);
-    size_t size = *reinterpret_cast<size_t *>(node + kSizeOfBool);
-    if (pageIsFull(size, key_size, data_size))
+    std::unordered_map<std::string, std::pair<Token, Token>> index_condition_map;
+    for (auto &i : expr_vector)
     {
-      size_t new_root_page_num = createNewPage();
-
-      // size_t page_num = spiltFullPage(root_page_num);
-      //std::copy(reinterpret_cast<const char *>(&page_num), reinterpret_cast<const char *>(&key + kSizeOfSizeT), node + kSizeofPageHeader);
+      if (isIndexCondition(i))
+      {
+        std::string index_name = database_schema_.table_schema_map[i.children.front().token.str].column_schema_map[i.children.back().token.str].index_name;
+        int data_type = database_schema_.table_schema_map[i.children.front().token.str].column_schema_map[i.children.back().token.str].data_type;
+        if (index_name.empty())
+          continue;
+        std::pair<Token, Token> condition;
+        if (index_condition_map.find(index_name) != index_condition_map.end())
+          condition = index_condition_map[index_name];
+        if (data_type == 0)
+          convertInt(i.children.back().token);
+        else if (data_type > 0)
+          convertString(i.children.back().token);
+        if ((i.token.token_type == kGreater || i.token.token_type == kGreaterEqual))
+        {
+          if (condition.first.token_type == kNull)
+            condition.first = i.children.back().token;
+          else if (data_type == 0 && strncmp(reinterpret_cast<const char *>(&i.children.back().token.num), reinterpret_cast<const char *>(&condition.first.num), kSizeOfSizeT) > 0)
+            condition.first = i.children.back().token;
+          else if (data_type > 0 && i.children.back().token.str > condition.first.str)
+            condition.first = i.children.back().token;
+        }
+        else if ((i.token.token_type == kLess || i.token.token_type == kLessEqual))
+        {
+          if (condition.second.token_type == kNull)
+            condition.second = i.children.back().token;
+          else if (data_type == 0 && strncmp(reinterpret_cast<const char *>(&i.children.back().token.num), reinterpret_cast<const char *>(&condition.second.num), kSizeOfSizeT) < 0)
+            condition.second = i.children.back().token;
+          else if (data_type > 0 && i.children.back().token.str < condition.first.str)
+            condition.second = i.children.back().token;
+        }
+        else if (i.token.token_type == kEqual)
+        {
+          condition.first = condition.second = i.children.back().token;
+        }
+        index_condition_map[index_name] = condition;
+      }
     }
-    return insertPage(root_page_num, key_value, key_size, data_value, data_size);
+    if (index_condition_map.empty())
+      return {"", {Token(kNull), Token(kNull)}};
+    else
+      return {index_condition_map.begin()->first, index_condition_map.begin()->second};
   }
 
-  bool pageIsFull(size_t size, size_t key_size, size_t data_size)
+  bool isIndexCondition(Node &node)
   {
-    return (kPageSize - kSizeofPageHeader - data_size) / (key_size + data_size) <= size;
+    if (node.token.token_type != kGreater && node.token.token_type != kGreaterEqual && node.token.token_type != kLess && node.token.token_type != kLessEqual && node.token.token_type != kEqual)
+      return false;
+    Node &left_node = node.children.front();
+    Node &right_node = node.children.back();
+    if (left_node.token.token_type == kName && (right_node.token.token_type == kNull || right_node.token.token_type == kNum || right_node.token.token_type == kString))
+    {
+      if (!database_schema_.table_schema_map[left_node.children.front().token.str].column_schema_map[left_node.children.back().token.str].index_name.empty())
+        return true;
+      else
+        return false;
+    }
+    else if (right_node.token.token_type == kName && (left_node.token.token_type == kNull || left_node.token.token_type == kNum || left_node.token.token_type == kString))
+    {
+      std::swap(right_node, left_node);
+      if (!database_schema_.table_schema_map[left_node.children.front().token.str].column_schema_map[left_node.children.back().token.str].index_name.empty())
+        return true;
+      else
+        return false;
+    }
+    else
+      return false;
   }
 
-  void insertPage(size_t page_num, char *key_value, size_t key_size, char *data_value, size_t data_size)
-  {
-    PagePtr page = buffer_pool_.getPage(page_num);
-  }
 private:
+  GDBE() : buffer_pool_(BufferPool::getInstance()), file_system_(FileSystem::getInstance()) {}
   QueryOptimizer query_optimizer_;
   BufferPool &buffer_pool_;
   FileSystem &file_system_;
-  Logger &logger_;
   SyntaxTree syntax_tree_;
   Result result_;
   std::string database_name_;

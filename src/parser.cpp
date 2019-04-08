@@ -116,7 +116,7 @@ Node Parser::parseCreate()
         match(kOn);
         Node *name_node_ptr = build(parseName(2), index_node_ptr);
         match(kLeftParenthesis);
-        build(parseNames(), index_node_ptr);
+        build(parseNames(3), index_node_ptr);
         match(kRightParenthesis);
         return creat_node;
     }
@@ -134,7 +134,7 @@ Node Parser::parseInsert()
     if (lookAhead().token_type == kLeftParenthesis)
     {
         match(kLeftParenthesis);
-        build(parseNames(), &insert_node);
+        build(parseNames(3), &insert_node);
         match(kRightParenthesis);
     }
     Node values_node = parseValues();
@@ -145,21 +145,27 @@ Node Parser::parseInsert()
 Node Parser::parseSelect()
 {
     Node select_node{match(kSelect)};
+    Node *columns_node_ptr = build(Token(kColumns, "COLUMNS"), &select_node);
     switch (lookAhead().token_type)
     {
     case kMultiply:
     {
-        build(next(), &select_node);
+        build(next(), columns_node_ptr);
+        if (lookAhead().token_type == kComma)
+        {
+            next();
+            build(parseExprs(), columns_node_ptr);
+        }
         break;
     }
     default:
     {
-        build(parseExprs(), &select_node);
+        build(parseExprs(), columns_node_ptr);
         break;
     }
     }
     match(kFrom);
-    build(parseName(2), &select_node);
+    build(parseNames(2), &select_node);
     if (lookAhead().token_type == kJoin)
         build(parseJoins(), &select_node);
     if (lookAhead().token_type == kWhere)
@@ -167,7 +173,7 @@ Node Parser::parseSelect()
     if (lookAhead().token_type == kLimit)
     {
         Node *limit_node_ptr = build(next(), &select_node);
-        build(parseExpr(), limit_node_ptr);
+        build(match(kNum), limit_node_ptr);
     }
     return select_node;
 }
@@ -254,7 +260,7 @@ Node Parser::parsePrimary()
     Node primary_node{match(kPrimary)};
     match(kKey);
     match(kLeftParenthesis);
-    build(parseNames(), &primary_node);
+    build(parseNames(3), &primary_node);
     match(kRightParenthesis);
     return primary_node;
 }
@@ -375,10 +381,10 @@ Node Parser::parseName(size_t count)
     return name_node;
 }
 
-Node Parser::parseNames()
+Node Parser::parseNames(size_t count)
 {
     Node names_node{Token(kNames, "NAMES")};
-    build(parseName(3), &names_node);
+    build(parseName(count), &names_node);
     while (lookAhead().token_type == kComma)
     {
         next();

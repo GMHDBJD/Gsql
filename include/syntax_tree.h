@@ -8,7 +8,7 @@
 struct Node
 {
   Token token;
-  std::vector<Node> childern;
+  std::vector<Node> children;
   Node(const Token &t = kNone) : token(t) {}
 };
 
@@ -19,8 +19,8 @@ public:
   {
     if (parent)
     {
-      parent->childern.push_back(new_node);
-      return &parent->childern.back();
+      parent->children.push_back(new_node);
+      return &parent->children.back();
     }
     else
     {
