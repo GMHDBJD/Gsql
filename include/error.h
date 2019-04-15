@@ -28,7 +28,10 @@ enum ErrorType
   kNotUniqueTableError,
   kColumnAmbiguousError,
   kUnkownColumnError,
-  kNameNoValueError
+  kNameNoValueError,
+  kDuplicateIndexError,
+  kIndexExistError,
+  kIndexNotExistError
 
 };
 

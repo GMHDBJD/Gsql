@@ -8,12 +8,14 @@
 #include <fstream>
 #include <queue>
 
+constexpr size_t size = 20;
+
 namespace unittest
 {
 class Test
 {
-  private:
-    std::string sql_arr[19] = {
+private:
+    std::string sql_arr[size] = {
         "CREATE DATABASE gsql;",
         "SHOW DATABASES;",
         "USE gsql;",
@@ -31,10 +33,11 @@ class Test
         "ALTER TABLE test ADD str CHAR;",
         "DROP TABLE test;",
         "DROP DATABASE gsql;",
+        "DROP INDEX test ON gsql;",
         "EXPLAIN gsql.test;",
         "EXIT;"};
 
-  public:
+public:
     void shellTest()
     {
         Shell shell;
@@ -47,7 +50,7 @@ class Test
     {
         std::queue<Token> token_queue;
         Lexer lexer;
-        for (int i = 0; i < 19; ++i)
+        for (int i = 0; i < size; ++i)
         {
             token_queue = lexer.lex(sql_arr[i]);
             std::cout << sql_arr[i] << std::endl;
@@ -74,7 +77,7 @@ class Test
         SyntaxTree syntax_tree;
         std::ofstream fout("test.md");
 
-        for (int i = 0; i < 19; ++i)
+        for (int i = 0; i < size; ++i)
         {
             fout << sql_arr[i] << std::endl;
             fout << "\n```mermaid\ngraph TD;\n";

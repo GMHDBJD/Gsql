@@ -30,18 +30,18 @@ public:
   void execInsert(Node &);
   void execSelect(Node &);
   void execUpdate(const Node &){};
-  void execDelete(const Node &){};
+  void execDelete(const Node &);
   void execAlter(const Node &){};
   void execDrop(const Node &);
   void execCreateTable(const Node &);
   void execCreateDatabase(const Node &);
-  void execCreateIndex(const Node &){};
+  void execCreateIndex(const Node &);
   void execShowDatabases(const Node &);
   void execShowTables(const Node &);
-  void execShowIndex(const Node &){};
+  void execShowIndex(const Node &);
   void execDropDatabase(const Node &);
   void execDropTable(const Node &);
-  void execDropIndex(const Node &){};
+  void execDropIndex(const Node &);
   void execExplain(const Node &);
   size_t getExprDataType(const Node &node)
   {
@@ -64,7 +64,7 @@ public:
     for (auto &&i : column_schema_map)
     {
       if (i.second.data_type == 0)
-        size += kSizeOfSizeT;
+        size += kSizeOfLong;
       else
         size += i.second.data_type;
     }
@@ -81,6 +81,11 @@ public:
       database_schema_.free_page_deque.pop_front();
       return temp;
     }
+  };
+
+  size_t addFreePage(size_t page_id)
+  {
+    database_schema_.free_page_deque.push_back(page_id);
   };
 
   void updateDatabaseSchema()
@@ -104,8 +109,8 @@ public:
 
   size_t splitFullPage(size_t page_id, char *middle_key);
 
-  void selectRecursive(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::vector<Node> &select_expr_vector);
-  void selectRecursiveAux(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::vector<Node> &select_expr_vector);
+  void selectRecursive(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::vector<Node> &select_expr_vector, size_t limit);
+  void selectRecursiveAux(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::vector<Node> &select_expr_vector, size_t limit);
   std::pair<std::string, std::pair<Token, Token>> getCondition(std::vector<Node> &expr_vector)
   {
     std::unordered_map<std::string, std::pair<Token, Token>> index_condition_map;
@@ -113,8 +118,9 @@ public:
     {
       if (isIndexCondition(i))
       {
-        std::string index_name = database_schema_.table_schema_map[i.children.front().token.str].column_schema_map[i.children.back().token.str].index_name;
-        int data_type = database_schema_.table_schema_map[i.children.front().token.str].column_schema_map[i.children.back().token.str].data_type;
+        const Node &name_node = i.children.front();
+        std::string index_name = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].index_name;
+        int data_type = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].data_type;
         if (index_name.empty())
           continue;
         std::pair<Token, Token> condition;

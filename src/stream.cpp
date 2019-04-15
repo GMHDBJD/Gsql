@@ -26,7 +26,7 @@ Stream &operator>>(Stream &stream, ColumnSchema &column_schema)
 
 Stream &operator>>(Stream &stream, IndexSchema &index_schema)
 {
-  stream >> index_schema.root_page_id >> index_schema.column_name_set;
+  stream >> index_schema.root_page_id >> index_schema.column_name;
   return stream;
 }
 
@@ -56,7 +56,7 @@ Stream &operator<<(Stream &stream, const ColumnSchema &column_schema)
 
 Stream &operator<<(Stream &stream, const IndexSchema &index_schema)
 {
-  stream << index_schema.root_page_id << index_schema.column_name_set;
+  stream << index_schema.root_page_id << index_schema.column_name;
   return stream;
 }
 
@@ -102,5 +102,5 @@ size_t getSize(const ColumnSchema &column_schema)
 
 size_t getSize(const IndexSchema &index_schema)
 {
-  return getSize(index_schema.root_page_id) + getSize(index_schema.column_name_set);
+  return getSize(index_schema.root_page_id) + getSize(index_schema.column_name);
 }

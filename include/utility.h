@@ -16,7 +16,7 @@ int doNothing(int count, int key);
 
 void serilization(const std::vector<Token> &values, const std::vector<size_t> &values_size, char *values_ptr);
 
-std::unordered_map<std::string, Token> toTokenVector(const char *value, const TableSchema &table_schema, size_t key_size);
+std::unordered_map<std::string, Token> toTokenMap(const char *value, const TableSchema &table_schema, size_t key_size);
 
 std::vector<Token> toTokenResultVector(const char *value, const std::vector<int> data_type_vector, size_t key_size);
 
@@ -30,7 +30,7 @@ Node eval(const Node &, const std::unordered_map<std::string, std::unordered_map
 
 void check(Node &, const std::unordered_set<std::string> &, const std::string database_name, const DatabaseSchema &database_schema);
 
-std::vector<Node> splitExprVector(const std::vector<Node> &condition_node_vector);
+std::vector<Node> splitConditionVector(const std::vector<Node> &condition_node_vector);
 
 std::vector<Node> splitExpr(const Node &);
 
@@ -49,7 +49,7 @@ public:
   }
 };
 
-bool partitionExprVector(const std::vector<Node> &, std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> *);
+bool partitionConditionForTable(const std::vector<Node> &, std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> *);
 
 void getTableSet(const Node &, std::unordered_set<std::string> *);
 

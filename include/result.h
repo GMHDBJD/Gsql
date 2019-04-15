@@ -17,12 +17,15 @@ enum ResultType
     kCreateTableResult,
     kDropTableResult,
     kExplainResult,
-    kExitResult
+    kExitResult,
+    kCreateIndexResult,
+    kShowIndexResult,
+    kDropIndexResult
 };
 
 struct Result
 {
-  public:
+public:
     ResultType type;
     std::vector<std::vector<std::string>> string_vector_vector;
     std::vector<size_t> value_size_vector;

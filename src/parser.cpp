@@ -71,10 +71,12 @@ Node Parser::parseShow()
         build(next(), &show_node);
         return show_node;
     case kIndex:
-        build(next(), &show_node);
+    {
+        Node *index_node_ptr = build(next(), &show_node);
         match(kFrom);
-        build(parseName(2), &show_node);
+        build(parseName(2), index_node_ptr);
         return show_node;
+    }
     default:
         throw Error(kSqlError, lookAhead().str);
     }
@@ -206,6 +208,7 @@ Node Parser::parseDrop()
         build(match(kStr), index_node_ptr);
         match(kOn);
         build(parseName(2), index_node_ptr);
+        return drop_node;
     }
     default:
         throw Error(kSqlError, lookAhead().str);
@@ -616,7 +619,7 @@ Node Parser::parseJoins()
     build(parseJoin(), &joins_node);
     while (lookAhead().token_type == kJoin)
     {
-        build(parseJoin());
+        build(parseJoin(), &joins_node);
     }
     return joins_node;
 }

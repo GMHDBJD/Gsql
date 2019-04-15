@@ -105,11 +105,12 @@ std::queue<Token> Lexer::lex(const std::string &input)
         }
         else if (isdigit(c))
         {
-            int i = c - '0';
+            long i = c - '0';
             next();
             while (isdigit((c = lookAhead())))
             {
-                i *= 10 + c - '0';
+                i *= 10;
+                i += c - '0';
                 next();
             }
             token_queue.push(Token(kNum, std::to_string(i), i));

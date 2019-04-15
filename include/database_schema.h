@@ -10,7 +10,7 @@
 
 class MyHashFunction
 {
-  public:
+public:
     template <typename T>
     size_t operator()(const T &t) const
     {
@@ -20,7 +20,7 @@ class MyHashFunction
 
 class MyEqualFunction
 {
-  public:
+public:
     template <typename T>
     bool operator()(const T &lhs, const T &rhs) const
     {
@@ -48,7 +48,7 @@ struct ColumnSchema
 struct IndexSchema
 {
     size_t root_page_id;
-    std::unordered_set<std::string> column_name_set;
+    std::string column_name;
 };
 
 struct TableSchema

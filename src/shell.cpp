@@ -3,6 +3,10 @@
 
 std::string Shell::getInput()
 {
+    if (buffer.find_first_not_of(' ') == std::string::npos)
+    {
+        buffer = "";
+    }
     while (buffer.empty())
     {
         char *buf = readline("Gsql> ");
@@ -12,6 +16,10 @@ std::string Shell::getInput()
         }
         buffer += buf;
         free(buf);
+        if (buffer.find_first_not_of(' ') == std::string::npos)
+        {
+            buffer = "";
+        }
     }
     int state = 1;
     std::string::size_type pos = 0;
@@ -120,6 +128,18 @@ void Shell::showResult(const Result &result)
             std::cout << std::endl;
         }
         break;
+    case kShowIndexResult:
+        for (auto &&i : result.string_vector_vector.front())
+        {
+            std::cout << i << std::endl;
+        }
+        break;
+    case kCreateIndexResult:
+        std::cout << "create index" << std::endl;
+        break;
+    case kDropIndexResult:
+        std::cout << "drop index" << std::endl;
+        break;
     default:
         break;
     }
@@ -204,6 +224,16 @@ void Shell::showError(const Error &error)
         break;
     case kNameNoValueError:
         std::cout << "no value match column '" << error.what() << std::endl;
+        break;
+    case kDuplicateIndexError:
+        std::cout << "duplicate index name '" << error.what() << "' " << std::endl;
+        break;
+    case kIndexExistError:
+        std::cout << "index '" << error.what() << "' "
+                  << "exist" << std::endl;
+        break;
+    case kIndexNotExistError:
+        std::cout << "index '" << error.what() << "' not exist" << std::endl;
         break;
     default:
         break;

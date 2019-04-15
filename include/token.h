@@ -87,7 +87,7 @@ enum TokenType
 
 struct Token
 {
-    Token(TokenType t = kNone, const std::string &s = "", int n = 0) : token_type(t), str(s), num(n){};
+    Token(TokenType t = kNone, const std::string &s = "", long n = 0) : token_type(t), str(s), num(n){};
     TokenType token_type;
     long num;
     std::string str;
@@ -95,7 +95,7 @@ struct Token
     {
         return token_type != kNone;
         std::vector<int> v;
-        }
+    }
 };
 
 #endif

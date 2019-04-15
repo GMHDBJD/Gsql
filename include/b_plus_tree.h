@@ -6,13 +6,21 @@
 #include "const.h"
 #include "buffer_pool.h"
 
-size_t createNewPage(bool leaf, size_t size, size_t left_page_id, size_t right_page_id, size_t key_size, size_t value_size);
+size_t createNewPage(const PageSchema &page_schema);
 
-void BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique);
+void BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size_t *root_page_id);
+
+void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id);
+
+void removeBPlusTree(size_t page_id);
 
 void insertNonFullPage(size_t page_id, char *key, char *value);
 
-bool pageIsFull(size_t size, size_t key_size, size_t value_size);
+bool pageIsFull(const PageSchema &page_schema);
+
+bool pageIsMinimum(const PageSchema &page_schema);
+
+PageSchema getPageSchema(size_t page_id);
 
 size_t splitFullPage(size_t page_id, char *middle_key);
 
@@ -29,7 +37,7 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
     size_t value_size_;
     size_t page_id_;
 
-  public:
+public:
     Iter(size_t page_id)
     {
         setPage(page_id);
@@ -47,16 +55,20 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
             right_page_id_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfRightPageId));
             key_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfKeySize));
             value_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfValueSize));
-            pos_ = kSizeofPageHeader + value_size_;
+            pos_ = kOffsetOfPageHeader + value_size_;
         }
         return *this;
+    }
+    size_t getPageId() const
+    {
+        return page_id_;
     }
     Iter &operator++()
     {
         if (page_id_ != -1)
         {
             pos_ += key_size_ + value_size_;
-            if (pos_ >= kSizeofPageHeader + value_size_ + size_ * (value_size_ + key_size_))
+            if (pos_ >= kOffsetOfPageHeader + value_size_ + size_ * (value_size_ + key_size_))
                 setPage(right_page_id_);
         }
         return *this;
@@ -65,7 +77,7 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
     {
         if (page_id_ != -1)
         {
-            if (pos_ >= kSizeofPageHeader + value_size_ * 2 + key_size_)
+            if (pos_ >= kOffsetOfPageHeader + value_size_ * 2 + key_size_)
             {
                 pos_ -= key_size_ + value_size_;
                 return *this;
@@ -80,7 +92,7 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
                 right_page_id_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfRightPageId));
                 key_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfKeySize));
                 value_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfValueSize));
-                pos_ = kSizeofPageHeader + value_size_;
+                pos_ = kOffsetOfPageHeader + value_size_;
                 return *this;
             }
             else
@@ -95,7 +107,7 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
     {
         if (page_id_ != -1)
         {
-            if (pos_ < kSizeofPageHeader + value_size_ + size_ * (value_size_ + key_size_))
+            if (pos_ < kOffsetOfPageHeader + value_size_ + size_ * (value_size_ + key_size_))
                 return page_buffer_ + pos_;
             else
                 return nullptr;
@@ -120,7 +132,7 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
 
 class Iterator
 {
-  public:
+public:
     Iter begin()
     {
         return Iter(begin_page_id_);
@@ -132,12 +144,12 @@ class Iterator
 
     Iterator(size_t begin_page_id, size_t end_page_id) : begin_page_id_(begin_page_id), end_page_id_(end_page_id) {}
 
-  private:
+private:
     size_t begin_page_id_;
     size_t end_page_id_;
 };
 
-size_t BPlusTreeTraverse(size_t page_id, char *key, bool next,int side);
+size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is_index);
 
-Iterator BPlusTreeSelect(size_t page_id, char *begin_key, char *end_key);
+Iterator BPlusTreeSelect(size_t page_id, char *begin_key, char *end_key, bool is_index);
 #endif
