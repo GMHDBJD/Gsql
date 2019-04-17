@@ -26,16 +26,8 @@ size_t splitFullPage(size_t page_id, char *middle_key);
 
 class Iter : public std::iterator<std::random_access_iterator_tag, char *>
 {
-    PagePtr page_ptr_;
-    char *page_buffer_;
+    PageSchema page_schema_;
     size_t pos_;
-    bool leaf_;
-    size_t size_;
-    size_t left_page_id_;
-    size_t right_page_id_;
-    size_t key_size_;
-    size_t value_size_;
-    size_t page_id_;
 
 public:
     Iter(size_t page_id)
@@ -44,71 +36,35 @@ public:
     }
     Iter &setPage(size_t page_id)
     {
-        page_id_ = page_id;
-        if (page_id != -1)
+        if (page_id == -1)
+            page_schema_.page_id = -1;
+        else
         {
-            page_ptr_ = BufferPool::getInstance().getPage(page_id);
-            page_buffer_ = page_ptr_->buffer;
-            leaf_ = *(reinterpret_cast<const bool *>(page_buffer_ + kOffsetOfLeaf));
-            size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfSize));
-            left_page_id_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfLeftPageId));
-            right_page_id_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfRightPageId));
-            key_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfKeySize));
-            value_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfValueSize));
-            pos_ = kOffsetOfPageHeader + value_size_;
+            page_schema_ = getPageSchema(page_id);
+            pos_ = kOffsetOfPageHeader;
         }
         return *this;
     }
     size_t getPageId() const
     {
-        return page_id_;
+        return page_schema_.page_id;
     }
     Iter &operator++()
     {
-        if (page_id_ != -1)
+        if (page_schema_.page_id != -1)
         {
-            pos_ += key_size_ + value_size_;
-            if (pos_ >= kOffsetOfPageHeader + value_size_ + size_ * (value_size_ + key_size_))
-                setPage(right_page_id_);
-        }
-        return *this;
-    }
-    Iter operator--()
-    {
-        if (page_id_ != -1)
-        {
-            if (pos_ >= kOffsetOfPageHeader + value_size_ * 2 + key_size_)
-            {
-                pos_ -= key_size_ + value_size_;
-                return *this;
-            }
-            else if (left_page_id_ != -1)
-            {
-                page_ptr_ = BufferPool::getInstance().getPage(right_page_id_);
-                page_buffer_ = page_ptr_->buffer;
-                leaf_ = *(reinterpret_cast<const bool *>(page_buffer_ + kOffsetOfLeaf));
-                size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfSize));
-                left_page_id_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfLeftPageId));
-                right_page_id_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfRightPageId));
-                key_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfKeySize));
-                value_size_ = *(reinterpret_cast<const size_t *>(page_buffer_ + kOffsetOfValueSize));
-                pos_ = kOffsetOfPageHeader + value_size_;
-                return *this;
-            }
-            else
-            {
-                setPage(-1);
-                return *this;
-            }
+            pos_ += page_schema_.key_size + page_schema_.value_size;
+            if (pos_ >= page_schema_.total_size)
+                setPage(page_schema_.right_page_id);
         }
         return *this;
     }
     char *operator*()
     {
-        if (page_id_ != -1)
+        if (page_schema_.page_id != -1)
         {
-            if (pos_ < kOffsetOfPageHeader + value_size_ + size_ * (value_size_ + key_size_))
-                return page_buffer_ + pos_;
+            if (pos_ < page_schema_.total_size)
+                return page_schema_.page_buffer + pos_;
             else
                 return nullptr;
         }
@@ -119,10 +75,10 @@ public:
     }
     bool operator==(const Iter &rhs)
     {
-        if (page_id_ == -1 && rhs.page_id_ == -1)
+        if (page_schema_.page_id == -1 && rhs.page_schema_.page_id == -1)
             return true;
         else
-            return page_id_ == rhs.page_id_ && pos_ == rhs.pos_;
+            return page_schema_.page_id == rhs.page_schema_.page_id && pos_ == rhs.pos_;
     }
     bool operator!=(const Iter &rhs)
     {

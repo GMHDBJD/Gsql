@@ -83,7 +83,7 @@ public:
     }
   };
 
-  size_t addFreePage(size_t page_id)
+  void addFreePage(size_t page_id)
   {
     database_schema_.free_page_deque.push_back(page_id);
   };

@@ -816,7 +816,6 @@ void GDBE::execCreateIndex(const Node &index_node)
     auto &&iterator = BPlusTreeSelect(table_schema.root_page_id, nullptr, nullptr, false);
     auto &&begin_iter = iterator.begin();
     auto &&end_iter = iterator.end();
-    bool null = false;
     size_t root_page_id = -1;
     for (auto &&iter = begin_iter; iter != end_iter; ++iter)
     {
@@ -826,6 +825,7 @@ void GDBE::execCreateIndex(const Node &index_node)
         char *key_ptr = new char[key_size];
         char *values_ptr = new char[kSizeOfSizeT + kSizeOfBool];
         serilization({key_token}, {key_size - kSizeOfBool}, key_ptr);
+        bool null = key_token.token_type == kNull ? true : false;
         std::copy(reinterpret_cast<const char *>(&null), reinterpret_cast<const char *>(&null) + kSizeOfBool, values_ptr);
         std::copy(reinterpret_cast<const char *>(&page_id), reinterpret_cast<const char *>(&page_id) + kSizeOfSizeT, values_ptr + kSizeOfBool);
         BPlusTreeInsert(index_schema.root_page_id, key_ptr, values_ptr, false, &root_page_id);
