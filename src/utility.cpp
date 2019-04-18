@@ -637,11 +637,11 @@ void getTableSet(const Node &expr_node, std::unordered_set<std::string> *table_s
     }
 }
 
-std::unordered_map<std::string, Token> toTokenMap(const char *value, const TableSchema &table_schema, size_t key_size)
+std::unordered_map<std::string, Token> toTokenMap(const char *value, const TableSchema &table_schema, size_t key_size, size_t *id)
 {
     size_t pos = key_size + kSizeOfBool;
     pos += kSizeOfBool;
-    size_t id = *reinterpret_cast<const size_t *>(value + pos);
+    *id = *reinterpret_cast<const size_t *>(value + pos);
     pos += kSizeOfSizeT;
     std::unordered_map<std::string, Token> column_token_map;
     for (const auto &column_name : table_schema.column_order_vector)

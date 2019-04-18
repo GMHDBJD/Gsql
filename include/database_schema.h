@@ -28,9 +28,48 @@ public:
     }
 };
 
+class MySetHashFunction
+{
+public:
+    template <typename T>
+    size_t operator()(const std::unordered_set<T> &t) const
+    {
+        size_t result = 0;
+        for (auto &&i : t)
+        {
+            result += std::hash<T>()(i);
+        }
+        return result;
+    }
+};
+
 struct Settings
 {
     std::string database_dir;
+};
+
+struct IndexSchema
+{
+    size_t root_page_id = -1;
+    std::string column_name;
+};
+
+class MyIndexSchemaHashFunction
+{
+public:
+    size_t operator()(const IndexSchema &index_schema) const
+    {
+        return std::hash<size_t>()(index_schema.root_page_id);
+    }
+};
+
+class MyIndexSchemaEqualFunction
+{
+public:
+    bool operator()(const IndexSchema &lhs, const IndexSchema &rhs) const
+    {
+        return lhs.root_page_id == rhs.root_page_id;
+    }
 };
 
 struct ColumnSchema
@@ -39,16 +78,10 @@ struct ColumnSchema
     bool not_null = false;
     bool null_default = true;
     bool unique = false;
-    std::string index_name;
+    IndexSchema index_schema;
     std::string default_value;
     std::string reference_table_name;
     std::string reference_column_name;
-};
-
-struct IndexSchema
-{
-    size_t root_page_id;
-    std::string column_name;
 };
 
 struct TableSchema
@@ -58,7 +91,8 @@ struct TableSchema
     std::vector<std::string> column_order_vector;
     std::unordered_map<std::string, ColumnSchema> column_schema_map;
     std::unordered_set<std::string> primary_set;
-    std::unordered_map<std::string, IndexSchema> index_schema_map;
+    std::unordered_map<std::unordered_set<std::string>, std::unordered_map<std::string, IndexSchema>, MySetHashFunction> index_schema_map;
+    std::unordered_map<std::string, std::unordered_set<std::string>> index_column_map;
 };
 
 struct DatabaseSchema

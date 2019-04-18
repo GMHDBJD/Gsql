@@ -109,23 +109,28 @@ public:
 
   size_t splitFullPage(size_t page_id, char *middle_key);
 
-  void selectRecursive(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::vector<Node> &select_expr_vector, size_t limit);
-  void selectRecursiveAux(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::vector<Node> &select_expr_vector, size_t limit);
-  std::pair<std::string, std::pair<Token, Token>> getCondition(std::vector<Node> &expr_vector)
+  void selectRecursive(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::vector<Node> &select_expr_vector, size_t limit);
+  void selectRecursiveAux(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::vector<Node> &select_expr_vector, size_t limit);
+  std::pair<IndexSchema, std::pair<Token, Token>> getCondition(std::vector<Node> &expr_vector)
   {
-    std::unordered_map<std::string, std::pair<Token, Token>> index_condition_map;
+    std::unordered_map<IndexSchema, std::pair<Token, Token>, MyIndexSchemaHashFunction, MyIndexSchemaEqualFunction> index_condition_map;
     for (auto &i : expr_vector)
     {
       if (isIndexCondition(i))
       {
         const Node &name_node = i.children.front();
-        std::string index_name = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].index_name;
+        IndexSchema index_schema = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].index_schema;
         int data_type = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].data_type;
-        if (index_name.empty())
-          continue;
+        if (index_schema.root_page_id == -1)
+        {
+          const auto &iter = database_schema_.table_schema_map[name_node.children.front().token.str].index_schema_map.find({name_node.children.back().token.str});
+          if (iter == database_schema_.table_schema_map[name_node.children.front().token.str].index_schema_map.end())
+            continue;
+          index_schema = (*iter->second.begin()).second;
+        }
         std::pair<Token, Token> condition;
-        if (index_condition_map.find(index_name) != index_condition_map.end())
-          condition = index_condition_map[index_name];
+        if (index_condition_map.find(index_schema) != index_condition_map.end())
+          condition = index_condition_map[index_schema];
         if (data_type == 0)
           convertInt(i.children.back().token);
         else if (data_type > 0)
@@ -152,11 +157,11 @@ public:
         {
           condition.first = condition.second = i.children.back().token;
         }
-        index_condition_map[index_name] = condition;
+        index_condition_map[index_schema] = condition;
       }
     }
     if (index_condition_map.empty())
-      return {"", {Token(kNull), Token(kNull)}};
+      return {IndexSchema(), {Token(kNull), Token(kNull)}};
     else
       return {index_condition_map.begin()->first, index_condition_map.begin()->second};
   }
@@ -169,7 +174,7 @@ public:
     Node &right_node = node.children.back();
     if (left_node.token.token_type == kName && (right_node.token.token_type == kNull || right_node.token.token_type == kNum || right_node.token.token_type == kString))
     {
-      if (!database_schema_.table_schema_map[left_node.children.front().token.str].column_schema_map[left_node.children.back().token.str].index_name.empty())
+      if (database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.find({left_node.children.back().token.str}) != database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.end())
         return true;
       else
         return false;
@@ -177,7 +182,7 @@ public:
     else if (right_node.token.token_type == kName && (left_node.token.token_type == kNull || left_node.token.token_type == kNum || left_node.token.token_type == kString))
     {
       std::swap(right_node, left_node);
-      if (!database_schema_.table_schema_map[left_node.children.front().token.str].column_schema_map[left_node.children.back().token.str].index_name.empty())
+      if (database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.find({left_node.children.back().token.str}) != database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.end())
         return true;
       else
         return false;

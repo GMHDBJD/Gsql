@@ -12,9 +12,9 @@ void BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size_t
 
 void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id);
 
-void removeBPlusTree(size_t page_id);
+void BPlusTreeRemove(size_t page_id);
 
-void insertNonFullPage(size_t page_id, char *key, char *value);
+void insertNonFullPage(size_t page_id, char *key, char *value, bool unique);
 
 bool pageIsFull(const PageSchema &page_schema);
 
@@ -28,9 +28,10 @@ class Iter : public std::iterator<std::random_access_iterator_tag, char *>
 {
     PageSchema page_schema_;
     size_t pos_;
+    bool one_page_;
 
 public:
-    Iter(size_t page_id)
+    Iter(size_t page_id, bool op = false) : one_page_(op)
     {
         setPage(page_id);
     }
@@ -55,7 +56,10 @@ public:
         {
             pos_ += page_schema_.key_size + page_schema_.value_size;
             if (pos_ >= page_schema_.total_size)
-                setPage(page_schema_.right_page_id);
+                if (one_page_)
+                    setPage(-1);
+                else
+                    setPage(page_schema_.right_page_id);
         }
         return *this;
     }
@@ -91,18 +95,20 @@ class Iterator
 public:
     Iter begin()
     {
-        return Iter(begin_page_id_);
+        return Iter(begin_page_id_, one_page);
     }
     Iter end()
     {
-        return Iter(end_page_id_);
+        return Iter(end_page_id_, one_page);
     }
 
-    Iterator(size_t begin_page_id, size_t end_page_id) : begin_page_id_(begin_page_id), end_page_id_(end_page_id) {}
+    Iterator(size_t begin_page_id, size_t end_page_id) : begin_page_id_(begin_page_id), end_page_id_(end_page_id), one_page(false) {}
+    Iterator(size_t page) : begin_page_id_(page), end_page_id_(-1), one_page(true) {}
 
 private:
     size_t begin_page_id_;
     size_t end_page_id_;
+    bool one_page;
 };
 
 size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is_index);

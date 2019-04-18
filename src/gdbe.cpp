@@ -60,7 +60,7 @@ Result GDBE::getResult()
         if (result_.iter == result_.end_iter)
         {
             Result temp_result;
-            removeBPlusTree(result_.page_id);
+            BPlusTreeRemove(result_.page_id);
             std::swap(result_, temp_result);
             return temp_result;
         }
@@ -404,7 +404,7 @@ void GDBE::execDropTable(const Node &table_node)
     if (table_iter == database_schema_.table_schema_map.end())
         throw Error(kTableNotExistError, table_name);
     size_t page_id = table_iter->second.root_page_id;
-    removeBPlusTree(page_id);
+    BPlusTreeRemove(page_id);
     database_schema_.table_schema_map.erase(table_iter->first);
     updateDatabaseSchema();
     database_schema_.table_schema_map[table_iter->first] = table_iter->second;
@@ -623,7 +623,7 @@ void GDBE::execSelect(Node &select_node)
         eval(i, {}, true);
     }
     std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> table_condition_map;
-    std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> table_index_condition_map;
+    std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> table_index_condition_map;
     bool rc = partitionConditionForTable(condition_vector, &table_condition_map);
     if (!rc)
         result_.type = kNoneResult;
@@ -637,12 +637,12 @@ void GDBE::execSelect(Node &select_node)
     }
 }
 
-void GDBE::selectRecursive(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &table_index_condition_map, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, const std::unordered_set<std::string> &select_table_name_set, const std::vector<Node> &select_expr_vector, size_t limit)
+void GDBE::selectRecursive(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &table_index_condition_map, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, const std::unordered_set<std::string> &select_table_name_set, const std::vector<Node> &select_expr_vector, size_t limit)
 {
     selectRecursiveAux(table_index_condition_map, table_condition_map, select_table_name_set, {}, {}, select_expr_vector, limit);
 }
 
-void GDBE::selectRecursiveAux(const std::unordered_map<std::string, std::pair<std::string, std::pair<Token, Token>>> &table_index_condition_map, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> remain_table_name_set, std::unordered_set<std::string> already_table_name_set, std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column_map, const std::vector<Node> &select_expr_vector, size_t limit)
+void GDBE::selectRecursiveAux(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &table_index_condition_map, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> remain_table_name_set, std::unordered_set<std::string> already_table_name_set, std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column_map, const std::vector<Node> &select_expr_vector, size_t limit)
 {
     if (result_.count == limit)
         return;
@@ -653,19 +653,15 @@ void GDBE::selectRecursiveAux(const std::unordered_map<std::string, std::pair<st
         already_table_name_set.insert(table_name);
         const TableSchema &table_schema = database_schema_.table_schema_map[table_name];
         const auto &index_condition_map_iter = table_index_condition_map.find(table_name);
-        char *begin_key = nullptr, *end_key = nullptr;
-        size_t page_id = table_schema.root_page_id;
-        size_t size = kSizeOfSizeT;
-        if (index_condition_map_iter != table_index_condition_map.end() && !index_condition_map_iter->second.first.empty())
+        if (index_condition_map_iter != table_index_condition_map.end() && index_condition_map_iter->second.first.root_page_id != -1)
         {
-            std::pair<std::string, std::pair<Token, Token>> index_condition = index_condition_map_iter->second;
-            std::string index_name = index_condition.first;
+            std::pair<IndexSchema, std::pair<Token, Token>> index_condition = index_condition_map_iter->second;
             std::pair<Token, Token> condition = index_condition.second;
-            const IndexSchema &index_schema = database_schema_.table_schema_map[table_name].index_schema_map[index_name];
+            const IndexSchema &index_schema = index_condition.first;
             std::string column_name = index_schema.column_name;
             const ColumnSchema &column_schema = database_schema_.table_schema_map[table_name].column_schema_map[column_name];
             int data_type = column_schema.data_type;
-            size = data_type == 0 ? kSizeOfLong : data_type;
+            size_t size = data_type == 0 ? kSizeOfLong : data_type;
             Token token;
             if (data_type == 0)
             {
@@ -677,64 +673,124 @@ void GDBE::selectRecursiveAux(const std::unordered_map<std::string, std::pair<st
                 convertString(condition.first);
                 convertString(condition.second);
             }
-            begin_key = new char[size + kSizeOfBool];
-            end_key = new char[size + kSizeOfBool];
-            serilization({condition.first}, {size + kSizeOfBool}, begin_key);
-            serilization({condition.second}, {size + kSizeOfBool}, end_key);
-            page_id = index_schema.root_page_id;
-        }
-        for (auto &&i : BPlusTreeSelect(page_id, begin_key, end_key, false))
-        {
-            bool is_true = true;
-            std::unordered_map<std::string, Token> column_token_map = toTokenMap(i, table_schema, size);
-            table_column_map[table_name] = column_token_map;
-
-            for (const auto &i : table_condition_map)
+            char *begin_key = new char[size + kSizeOfBool];
+            char *end_key = new char[size + kSizeOfBool];
+            serilization({condition.first}, {size}, begin_key);
+            serilization({condition.second}, {size}, end_key);
+            size_t index_page_id = index_schema.root_page_id;
+            PageSchema temp_page_schema(true, 0, -1, -1, kSizeOfBool, 0, 0);
+            size_t temp_page_id = createNewPage(temp_page_schema);
+            char *temp_key = new char[kSizeOfSizeT];
+            for (auto &&i : BPlusTreeSelect(index_page_id, begin_key, end_key, true))
             {
-                if (i.first.find(table_name) == i.first.end())
-                    continue;
-                else
+                size_t page_id = *reinterpret_cast<const size_t *>(i + size + kSizeOfBool + kSizeOfSizeT);
+                std::copy(reinterpret_cast<const char *>(&page_id), reinterpret_cast<const char *>(&page_id) + kSizeOfSizeT, temp_key);
+                BPlusTreeInsert(temp_page_id, temp_key, nullptr, true, &temp_page_id);
+            }
+            delete[] temp_key;
+            for (auto &&page_id_iter : BPlusTreeSelect(temp_page_id, nullptr, nullptr, false))
+            {
+                size_t page_id = *reinterpret_cast<const size_t *>(page_id_iter);
+                for (auto &&iter : Iterator(page_id))
                 {
-                    bool flag = true;
-                    for (const auto &j : i.first)
+                    bool is_true = true;
+                    size_t id = -1;
+                    std::unordered_map<std::string, Token> column_token_map = toTokenMap(iter, table_schema, size, &id);
+                    table_column_map[table_name] = column_token_map;
+                    for (const auto &i : table_condition_map)
                     {
-                        if (already_table_name_set.find(j) == already_table_name_set.end())
+                        if (i.first.find(table_name) == i.first.end())
+                            continue;
+                        else
                         {
-                            flag = false;
-                            break;
-                        }
-                    }
-                    if (flag)
-                    {
-                        for (const auto &r : i.second)
-                        {
-                            Node result_node = eval(r, table_column_map, false);
-                            if (result_node.token.token_type != kNum || !result_node.token.num)
+                            bool flag = true;
+                            for (const auto &j : i.first)
                             {
-                                is_true = false;
+                                if (already_table_name_set.find(j) == already_table_name_set.end())
+                                {
+                                    flag = false;
+                                    break;
+                                }
+                            }
+                            if (flag)
+                            {
+                                for (const auto &r : i.second)
+                                {
+                                    Node result_node = eval(r, table_column_map, false);
+                                    if (result_node.token.token_type != kNum || !result_node.token.num)
+                                    {
+                                        is_true = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!is_true)
+                            break;
+                    }
+                    if (is_true)
+                        selectRecursiveAux(table_index_condition_map, table_condition_map, remain_table_name_set, already_table_name_set, table_column_map, select_expr_vector, limit);
+                    if (result_.count == limit)
+                    {
+                        BPlusTreeRemove(temp_page_id);
+                        delete[] begin_key;
+                        delete[] end_key;
+                        return;
+                    }
+                }
+            }
+            BPlusTreeRemove(temp_page_id);
+            delete[] begin_key;
+            delete[] end_key;
+        }
+        else
+        {
+            for (auto &&iter : BPlusTreeSelect(table_schema.root_page_id, nullptr, nullptr, false))
+            {
+                bool is_true = true;
+                size_t id = -1;
+                std::unordered_map<std::string, Token> column_token_map = toTokenMap(iter, table_schema, kSizeOfSizeT, &id);
+                table_column_map[table_name] = column_token_map;
+
+                for (const auto &i : table_condition_map)
+                {
+                    if (i.first.find(table_name) == i.first.end())
+                        continue;
+                    else
+                    {
+                        bool flag = true;
+                        for (const auto &j : i.first)
+                        {
+                            if (already_table_name_set.find(j) == already_table_name_set.end())
+                            {
+                                flag = false;
                                 break;
                             }
                         }
+                        if (flag)
+                        {
+                            for (const auto &r : i.second)
+                            {
+                                Node result_node = eval(r, table_column_map, false);
+                                if (result_node.token.token_type != kNum || !result_node.token.num)
+                                {
+                                    is_true = false;
+                                    break;
+                                }
+                            }
+                        }
                     }
+                    if (!is_true)
+                        break;
                 }
-                if (!is_true)
-                    break;
-            }
-            if (is_true)
-                selectRecursiveAux(table_index_condition_map, table_condition_map, remain_table_name_set, already_table_name_set, table_column_map, select_expr_vector, limit);
-            if (result_.count == limit)
-            {
-                if (begin_key != nullptr)
-                    delete[] begin_key;
-                if (end_key != nullptr)
-                    delete[] end_key;
-                return;
+                if (is_true)
+                    selectRecursiveAux(table_index_condition_map, table_condition_map, remain_table_name_set, already_table_name_set, table_column_map, select_expr_vector, limit);
+                if (result_.count == limit)
+                {
+                    return;
+                }
             }
         }
-        if (begin_key != nullptr)
-            delete[] begin_key;
-        if (end_key != nullptr)
-            delete[] end_key;
     }
     else
     {
@@ -800,15 +856,14 @@ void GDBE::execCreateIndex(const Node &index_node)
     std::string column_name = getColumnName(index_node.children.back().children.front(), database_name_, table_name);
     if (database_schema_.table_schema_map[table_name].column_schema_map.find(column_name) == database_schema_.table_schema_map[table_name].column_schema_map.end())
         throw Error(kColumnNotExistError, column_name);
-    if (database_schema_.table_schema_map[table_name].index_schema_map.find(index_name) != database_schema_.table_schema_map[table_name].index_schema_map.end())
+    if (database_schema_.table_schema_map[table_name].index_column_map.find(index_name) != database_schema_.table_schema_map[table_name].index_column_map.end())
         throw Error(kDuplicateIndexError, index_name);
-    if (!database_schema_.table_schema_map[table_name].column_schema_map[column_name].index_name.empty())
-        throw Error(kIndexExistError, database_schema_.table_schema_map[table_name].column_schema_map[column_name].index_name);
     TableSchema &table_schema = database_schema_.table_schema_map[table_name];
     ColumnSchema &column_schema = table_schema.column_schema_map[column_name];
     int data_type = column_schema.data_type;
-    size_t key_size = data_type == 0 ? kSizeOfLong + kSizeOfBool : data_type + kSizeOfBool;
-    PageSchema index_page_schema(true, 0, -1, -1, key_size, 0, kSizeOfBool + kSizeOfSizeT);
+    size_t index_size = data_type == 0 ? kSizeOfLong + kSizeOfBool : data_type + kSizeOfBool;
+    size_t key_size = index_size + kSizeOfSizeT;
+    PageSchema index_page_schema(true, 0, -1, -1, key_size, index_size, kSizeOfBool + kSizeOfSizeT);
     IndexSchema index_schema;
     index_schema.column_name = column_name;
     index_schema.root_page_id = createNewPage(index_page_schema);
@@ -819,15 +874,15 @@ void GDBE::execCreateIndex(const Node &index_node)
     size_t root_page_id = -1;
     for (auto &&iter = begin_iter; iter != end_iter; ++iter)
     {
-        std::unordered_map<std::string, Token> column_token_map = toTokenMap(*iter, table_schema, kSizeOfSizeT);
+        size_t id = -1;
+        std::unordered_map<std::string, Token> column_token_map = toTokenMap(*iter, table_schema, kSizeOfSizeT, &id);
         size_t page_id = iter.getPageId();
-        Token key_token = column_token_map[column_name];
+        Token index_token = column_token_map[column_name];
         char *key_ptr = new char[key_size];
-        char *values_ptr = new char[kSizeOfSizeT + kSizeOfBool];
-        serilization({key_token}, {key_size - kSizeOfBool}, key_ptr);
-        bool null = key_token.token_type == kNull ? true : false;
-        std::copy(reinterpret_cast<const char *>(&null), reinterpret_cast<const char *>(&null) + kSizeOfBool, values_ptr);
-        std::copy(reinterpret_cast<const char *>(&page_id), reinterpret_cast<const char *>(&page_id) + kSizeOfSizeT, values_ptr + kSizeOfBool);
+        char *values_ptr = new char[kSizeOfSizeT];
+        serilization({index_token}, {index_size - kSizeOfBool}, key_ptr);
+        std::copy(reinterpret_cast<const char *>(&id), reinterpret_cast<const char *>(&id) + kSizeOfSizeT, key_ptr + index_size);
+        std::copy(reinterpret_cast<const char *>(&page_id), reinterpret_cast<const char *>(&page_id) + kSizeOfSizeT, values_ptr);
         BPlusTreeInsert(index_schema.root_page_id, key_ptr, values_ptr, false, &root_page_id);
         if (root_page_id != -1)
         {
@@ -837,8 +892,8 @@ void GDBE::execCreateIndex(const Node &index_node)
         delete[] key_ptr;
         delete[] values_ptr;
     }
-    column_schema.index_name = index_name;
-    table_schema.index_schema_map[index_name] = index_schema;
+    table_schema.index_schema_map[{column_name}][index_name] = index_schema;
+    table_schema.index_column_map[index_name] = {column_name};
     updateDatabaseSchema();
     result_.type = kCreateIndexResult;
 }
@@ -851,7 +906,7 @@ void GDBE::execShowIndex(const Node &index_node)
     std::string table_name = getTableName(index_node.children.front(), database_name_);
     if (database_schema_.table_schema_map.find(table_name) == database_schema_.table_schema_map.end())
         throw Error(kTableNotExistError, table_name);
-    for (const auto &i : database_schema_.table_schema_map[table_name].index_schema_map)
+    for (const auto &i : database_schema_.table_schema_map[table_name].index_column_map)
     {
         string_vector.push_back(i.first);
     }
@@ -869,14 +924,18 @@ void GDBE::execDropIndex(const Node &index_node)
     auto table_iter = database_schema_.table_schema_map.find(table_name);
     if (table_iter == database_schema_.table_schema_map.end())
         throw Error(kTableNotExistError, table_name);
-    auto index_iter = table_iter->second.index_schema_map.find(index_name);
+    if (table_iter->second.index_column_map.find(index_name) == table_iter->second.index_column_map.end())
+        throw Error(kIndexNotExistError, index_name);
+    auto column_set = table_iter->second.index_column_map[index_name];
+    auto index_iter = table_iter->second.index_schema_map.find(column_set);
     if (index_iter == table_iter->second.index_schema_map.end())
         throw Error(kIndexNotExistError, index_name);
-    size_t page_id = index_iter->second.root_page_id;
-    removeBPlusTree(page_id);
-    std::string column_name = index_iter->second.column_name;
-    database_schema_.table_schema_map[table_name].column_schema_map[column_name].index_name = "";
-    database_schema_.table_schema_map[table_name].index_schema_map.erase(index_name);
+    size_t page_id = index_iter->second[index_name].root_page_id;
+    BPlusTreeRemove(page_id);
+    database_schema_.table_schema_map[table_name].index_column_map.erase(index_name);
+    database_schema_.table_schema_map[table_name].index_schema_map[column_set].erase(index_name);
+    if (database_schema_.table_schema_map[table_name].index_schema_map[column_set].empty())
+        database_schema_.table_schema_map[table_name].index_schema_map.erase(column_set);
     updateDatabaseSchema();
     result_.type = kDropIndexResult;
 }

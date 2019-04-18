@@ -51,7 +51,7 @@ void BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size_t
         page_id = new_page_id;
         file_system.write(page_id, new_page_schema.page_ptr);
     }
-    return insertNonFullPage(page_id, key, value);
+    return insertNonFullPage(page_id, key, value, unique);
 }
 
 size_t createNewPage(const PageSchema &page_schema)
@@ -73,7 +73,7 @@ size_t createNewPage(const PageSchema &page_schema)
     return new_page_id;
 }
 
-void insertNonFullPage(size_t page_id, char *key, char *value)
+void insertNonFullPage(size_t page_id, char *key, char *value, bool unique)
 {
     FileSystem &file_system = FileSystem::getInstance();
     PageSchema page_schema = getPageSchema(page_id);
@@ -83,6 +83,8 @@ void insertNonFullPage(size_t page_id, char *key, char *value)
         pos += page_schema.key_size + page_schema.value_size;
     if (page_schema.leaf)
     {
+        if (unique && pos > kOffsetOfPageHeader && std::memcmp(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, page_schema.key_size) == 0)
+            return;
         std::copy_backward(page_schema.page_buffer + pos, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + page_schema.total_size + page_schema.key_size + page_schema.value_size);
         std::copy(key, key + page_schema.key_size, page_schema.page_buffer + pos);
         std::copy(value, value + page_schema.value_size, page_schema.page_buffer + pos + page_schema.key_size);
@@ -113,9 +115,9 @@ void insertNonFullPage(size_t page_id, char *key, char *value)
             std::copy(reinterpret_cast<const char *>(&right_child_page_id), reinterpret_cast<const char *>(right_child_page_id) + kSizeOfSizeT, page_schema.page_buffer + pos + page_schema.key_size);
             file_system.write(page_id, page_schema.page_ptr);
             if (std::memcmp(key, middle_key, page_schema.key_size) < 0)
-                return insertNonFullPage(child_page_id, key, value);
+                return insertNonFullPage(child_page_id, key, value, unique);
             else
-                return insertNonFullPage(right_child_page_id, key, value);
+                return insertNonFullPage(right_child_page_id, key, value, unique);
         }
     }
 }
@@ -191,7 +193,7 @@ size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is
     }
 }
 
-void removeBPlusTree(size_t page_id)
+void BPlusTreeRemove(size_t page_id)
 {
     GDBE &gdbe = GDBE::getInstance();
     PageSchema page_schema = getPageSchema(page_id);
@@ -208,7 +210,7 @@ void removeBPlusTree(size_t page_id)
         gdbe.addFreePage(page_id);
     }
     if (child_page_id != -1)
-        return removeBPlusTree(child_page_id);
+        return BPlusTreeRemove(child_page_id);
 }
 
 void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)

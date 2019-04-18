@@ -145,6 +145,15 @@ Stream &operator<<(Stream &stream, const std::unordered_map<T, U> &data)
   return stream;
 }
 
+template <typename T, typename U, typename V>
+Stream &operator<<(Stream &stream, const std::unordered_map<T, U, V> &data)
+{
+  stream << data.size();
+  for (auto &&i : data)
+    stream << i.first << i.second;
+  return stream;
+}
+
 template <typename T>
 Stream &operator<<(Stream &stream, const std::deque<T> &data)
 {
@@ -207,6 +216,22 @@ Stream &operator>>(Stream &stream, std::unordered_set<T, U, C> &data)
 
 template <typename T, typename U>
 Stream &operator>>(Stream &stream, std::unordered_map<T, U> &data)
+{
+  size_t size = 0;
+  stream >> size;
+  data.clear();
+  for (size_t i = 0; i < size; ++i)
+  {
+    T key;
+    U value;
+    stream >> key >> value;
+    data[key] = value;
+  }
+  return stream;
+}
+
+template <typename T, typename U, typename V>
+Stream &operator>>(Stream &stream, std::unordered_map<T, U, V> &data)
 {
   size_t size = 0;
   stream >> size;

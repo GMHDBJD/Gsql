@@ -16,7 +16,7 @@ int doNothing(int count, int key);
 
 void serilization(const std::vector<Token> &values, const std::vector<size_t> &values_size, char *values_ptr);
 
-std::unordered_map<std::string, Token> toTokenMap(const char *value, const TableSchema &table_schema, size_t key_size);
+std::unordered_map<std::string, Token> toTokenMap(const char *value, const TableSchema &table_schema, size_t key_size, size_t *id);
 
 std::vector<Token> toTokenResultVector(const char *value, const std::vector<int> data_type_vector, size_t key_size);
 
@@ -33,21 +33,6 @@ void check(Node &, const std::unordered_set<std::string> &, const std::string da
 std::vector<Node> splitConditionVector(const std::vector<Node> &condition_node_vector);
 
 std::vector<Node> splitExpr(const Node &);
-
-class MySetHashFunction
-{
-public:
-  template <typename T>
-  size_t operator()(const std::unordered_set<T> &t) const
-  {
-    size_t result = 0;
-    for (auto &&i : t)
-    {
-      result += std::hash<T>()(i);
-    }
-    return result;
-  }
-};
 
 bool partitionConditionForTable(const std::vector<Node> &, std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> *);
 
