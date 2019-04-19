@@ -8,13 +8,15 @@
 
 size_t createNewPage(const PageSchema &page_schema);
 
-void BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size_t *root_page_id);
+size_t BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size_t *root_page_id);
 
 void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id);
 
+bool BPlusTreeSearch(size_t page_id, char *key, bool is_index);
+
 void BPlusTreeRemove(size_t page_id);
 
-void insertNonFullPage(size_t page_id, char *key, char *value, bool unique);
+size_t insertNonFullPage(size_t page_id, char *key, char *value, bool unique);
 
 bool pageIsFull(const PageSchema &page_schema);
 

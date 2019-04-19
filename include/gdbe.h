@@ -119,7 +119,11 @@ public:
       if (isIndexCondition(i))
       {
         const Node &name_node = i.children.front();
-        IndexSchema index_schema = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].index_schema;
+        IndexSchema index_schema;
+        if (database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].index_schema.root_page_id != -1)
+          index_schema = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].index_schema;
+        else
+          index_schema = database_schema_.table_schema_map[name_node.children.front().token.str].index_schema_map[{name_node.children.back().token.str}].begin()->second;
         int data_type = database_schema_.table_schema_map[name_node.children.front().token.str].column_schema_map[name_node.children.back().token.str].data_type;
         if (index_schema.root_page_id == -1)
         {
@@ -174,7 +178,7 @@ public:
     Node &right_node = node.children.back();
     if (left_node.token.token_type == kName && (right_node.token.token_type == kNull || right_node.token.token_type == kNum || right_node.token.token_type == kString))
     {
-      if (database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.find({left_node.children.back().token.str}) != database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.end())
+      if (database_schema_.table_schema_map[left_node.children.front().token.str].column_schema_map[left_node.children.back().token.str].index_schema.root_page_id != -1 || database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.find({left_node.children.back().token.str}) != database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.end())
         return true;
       else
         return false;
@@ -182,7 +186,7 @@ public:
     else if (right_node.token.token_type == kName && (left_node.token.token_type == kNull || left_node.token.token_type == kNum || left_node.token.token_type == kString))
     {
       std::swap(right_node, left_node);
-      if (database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.find({left_node.children.back().token.str}) != database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.end())
+      if (database_schema_.table_schema_map[left_node.children.front().token.str].column_schema_map[left_node.children.back().token.str].index_schema.root_page_id != -1 || database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.find({left_node.children.back().token.str}) != database_schema_.table_schema_map[left_node.children.front().token.str].index_schema_map.end())
         return true;
       else
         return false;

@@ -235,6 +235,15 @@ void Shell::showError(const Error &error)
     case kIndexNotExistError:
         std::cout << "index '" << error.what() << "' not exist" << std::endl;
         break;
+    case kDuplicateEntryError:
+        std::cout << "duplicate entry " << error.what() << std::endl;
+        break;
+    case kColumnNotNullError:
+        std::cout << "column '" << error.what() << "' can't be null" << std::endl;
+        break;
+    case kForeignkeyConstraintError:
+        std::cout << "foreign key constraint error" << std::endl;
+        break;
     default:
         break;
     }

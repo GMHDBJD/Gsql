@@ -293,6 +293,12 @@ void GDBE::execCreateTable(const Node &table_node)
                         else
                             new_column_schema.default_value = "";
                     }
+                    size_t index_size = new_column_schema.data_type == 0 ? kSizeOfLong + kSizeOfBool : new_column_schema.data_type + kSizeOfBool;
+                    PageSchema index_page_schema(true, 0, -1, -1, index_size + kSizeOfSizeT, index_size, kSizeOfBool + kSizeOfSizeT);
+                    IndexSchema index_schema;
+                    index_schema.column_name = column_name;
+                    index_schema.root_page_id = createNewPage(index_page_schema);
+                    new_column_schema.index_schema = index_schema;
                     break;
                 }
                 case kDefault:
@@ -316,6 +322,12 @@ void GDBE::execCreateTable(const Node &table_node)
                 case kUnique:
                 {
                     new_column_schema.unique = true;
+                    size_t index_size = new_column_schema.data_type == 0 ? kSizeOfLong + kSizeOfBool : new_column_schema.data_type + kSizeOfBool;
+                    PageSchema index_page_schema(true, 0, -1, -1, index_size + kSizeOfSizeT, index_size, kSizeOfBool + kSizeOfSizeT);
+                    IndexSchema index_schema;
+                    index_schema.column_name = column_name;
+                    index_schema.root_page_id = createNewPage(index_page_schema);
+                    new_column_schema.index_schema = index_schema;
                     break;
                 }
                 default:
@@ -347,14 +359,14 @@ void GDBE::execCreateTable(const Node &table_node)
             auto reference_column_iter = reference_table_iter->second.column_schema_map.find(reference_column_name);
             if (reference_column_iter == reference_table_iter->second.column_schema_map.end())
                 throw Error(kAddForeiginError, "");
-            if (reference_column_iter->second.data_type != column_iter->second.data_type || !reference_column_iter->second.not_null)
+            if (reference_column_iter->second.data_type != column_iter->second.data_type || !reference_column_iter->second.unique)
                 throw Error(kAddForeiginError, "");
             if (!column_iter->second.reference_table_name.empty() && column_iter->second.reference_table_name != reference_table_name)
                 throw Error(kAddForeiginError, "");
             if (!column_iter->second.reference_column_name.empty() && column_iter->second.reference_column_name != reference_column_name)
                 throw Error(kAddForeiginError, "");
-            column_iter->second.reference_column_name = reference_table_name;
-            column_iter->second.reference_table_name = reference_column_name;
+            column_iter->second.reference_column_name = reference_column_name;
+            column_iter->second.reference_table_name = reference_table_name;
         }
         else if (node.token.token_type == kPrimary)
         {
@@ -367,8 +379,25 @@ void GDBE::execCreateTable(const Node &table_node)
                 if (new_table_schema.column_schema_map.find(column_name) == new_table_schema.column_schema_map.end())
                     throw Error(kColumnNotExistError, column_name);
                 auto rc = new_table_schema.primary_set.insert(column_name);
-                if (!rc.second)
-                    throw Error(kDuplicateColumnError, column_name);
+                if (new_table_schema.primary_set.size() >= 1)
+                    throw Error(kSyntaxTreeError, name_node.token.str);
+                auto &column_schema = new_table_schema.column_schema_map[column_name];
+                column_schema.unique = true;
+                column_schema.not_null = true;
+                if (column_schema.null_default)
+                {
+                    column_schema.null_default = false;
+                    if (column_schema.data_type == 0)
+                        column_schema.default_value = "0";
+                    else
+                        column_schema.default_value = "";
+                }
+                size_t index_size = column_schema.data_type == 0 ? kSizeOfLong + kSizeOfBool : column_schema.data_type + kSizeOfBool;
+                PageSchema index_page_schema(true, 0, -1, -1, index_size + kSizeOfSizeT, index_size, kSizeOfBool + kSizeOfSizeT);
+                IndexSchema index_schema;
+                index_schema.column_name = column_name;
+                index_schema.root_page_id = createNewPage(index_page_schema);
+                column_schema.index_schema = index_schema;
             }
         }
     }
@@ -407,7 +436,6 @@ void GDBE::execDropTable(const Node &table_node)
     BPlusTreeRemove(page_id);
     database_schema_.table_schema_map.erase(table_iter->first);
     updateDatabaseSchema();
-    database_schema_.table_schema_map[table_iter->first] = table_iter->second;
     result_.type = kDropTableResult;
 }
 
@@ -501,6 +529,30 @@ void GDBE::execInsert(Node &insert_node)
             values_size.push_back(column_schema.data_type);
             table_column_value_map[table_name][column_name] = result_node.token;
         }
+        for (auto &&i : table_column_value_map[table_name])
+        {
+            const auto &column_schema = table_schema_iter->second.column_schema_map[i.first];
+            size_t size = column_schema.data_type == 0 ? kSizeOfLong : column_schema.data_type;
+            char *key = new char[size + kSizeOfBool + kSizeOfSizeT];
+            serilization({i.second}, {size}, key);
+            if (column_schema.unique)
+            {
+                if (BPlusTreeSearch(column_schema.index_schema.root_page_id, key, true))
+                {
+                    throw Error(kDuplicateEntryError, "'" + i.second.str + "' for key '" + i.first);
+                }
+            }
+            if (column_schema.not_null && i.second.token_type == kNull)
+                throw Error(kColumnNotNullError, i.first);
+            if (!column_schema.reference_column_name.empty())
+            {
+                TableSchema reference_table_schema = database_schema_.table_schema_map[column_schema.reference_table_name];
+                ColumnSchema reference_column_schema = reference_table_schema.column_schema_map[column_schema.reference_column_name];
+                if (!BPlusTreeSearch(reference_column_schema.index_schema.root_page_id, key, true))
+                    throw Error(kForeignkeyConstraintError, "");
+            }
+            delete[] key;
+        }
         char *key_ptr = new char[kSizeOfSizeT + kSizeOfBool];
         bool null = false;
         std::copy(reinterpret_cast<const char *>(&null), reinterpret_cast<const char *>(&null) + kSizeOfBool, key_ptr);
@@ -509,9 +561,54 @@ void GDBE::execInsert(Node &insert_node)
         char *values_ptr = new char[size];
         serilization(values, values_size, values_ptr);
         size_t root_page_id = -1;
-        BPlusTreeInsert(table_schema_iter->second.root_page_id, key_ptr, values_ptr, false, &root_page_id);
+        size_t page_id = BPlusTreeInsert(table_schema_iter->second.root_page_id, key_ptr, values_ptr, false, &root_page_id);
         if (root_page_id != -1)
             table_schema_iter->second.root_page_id = root_page_id;
+        for (auto &&i : table_column_value_map[table_name])
+        {
+            auto &column_schema = table_schema_iter->second.column_schema_map[i.first];
+            if (column_schema.index_schema.root_page_id != -1)
+            {
+                auto &index_schema = column_schema.index_schema;
+                size_t size = column_schema.data_type == 0 ? kSizeOfLong : column_schema.data_type;
+                char *key = new char[size + kSizeOfBool + kSizeOfSizeT];
+                char *value = new char[kSizeOfSizeT];
+                size_t index_page_id = -1;
+                serilization({i.second}, {size}, key);
+                std::copy(reinterpret_cast<const char *>(&page_id), reinterpret_cast<const char *>(&page_id) + kSizeOfSizeT, key + size + kSizeOfBool);
+                BPlusTreeInsert(index_schema.root_page_id, key, value, false, &index_page_id);
+                if (index_page_id != -1)
+                    index_schema.root_page_id = index_page_id;
+                delete[] key;
+                delete[] value;
+            }
+        }
+        for (auto &&i : table_column_value_map[table_name])
+        {
+            if (table_schema_iter->second.index_schema_map.find({i.first}) != table_schema_iter->second.index_schema_map.end())
+            {
+                for (auto &&index_pair : table_schema_iter->second.index_schema_map[{i.first}])
+                {
+                    IndexSchema &index_schema = index_pair.second;
+                    if (index_schema.root_page_id != -1)
+                    {
+                        auto &column_schema = table_schema_iter->second.column_schema_map[index_schema.column_name];
+                        size_t size = column_schema.data_type == 0 ? kSizeOfLong : column_schema.data_type;
+                        char *key = new char[size + kSizeOfBool + kSizeOfSizeT];
+                        char *value = new char[kSizeOfSizeT];
+                        size_t index_page_id = -1;
+                        serilization({i.second}, {size}, key);
+                        std::copy(reinterpret_cast<const char *>(&id), reinterpret_cast<const char *>(&id) + kSizeOfSizeT, key + size + kSizeOfBool);
+                        std::copy(reinterpret_cast<const char *>(&page_id), reinterpret_cast<const char *>(&page_id) + kSizeOfSizeT, value);
+                        BPlusTreeInsert(index_schema.root_page_id, key, value, false, &index_page_id);
+                        if (index_page_id != -1)
+                            index_schema.root_page_id = index_page_id;
+                        delete[] key;
+                        delete[] value;
+                    }
+                }
+            }
+        }
         updateDatabaseSchema();
         delete[] key_ptr;
         delete[] values_ptr;
@@ -678,7 +775,7 @@ void GDBE::selectRecursiveAux(const std::unordered_map<std::string, std::pair<In
             serilization({condition.first}, {size}, begin_key);
             serilization({condition.second}, {size}, end_key);
             size_t index_page_id = index_schema.root_page_id;
-            PageSchema temp_page_schema(true, 0, -1, -1, kSizeOfBool, 0, 0);
+            PageSchema temp_page_schema(true, 0, -1, -1, kSizeOfSizeT, 0, 0);
             size_t temp_page_id = createNewPage(temp_page_schema);
             char *temp_key = new char[kSizeOfSizeT];
             for (auto &&i : BPlusTreeSelect(index_page_id, begin_key, end_key, true))
