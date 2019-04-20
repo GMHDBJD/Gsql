@@ -54,7 +54,7 @@ size_t BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size
     return insertNonFullPage(page_id, key, value, unique);
 }
 
-bool BPlusTreeSearch(size_t page_id, char *key, bool is_index)
+char *BPlusTreeSearch(size_t page_id, char *key, bool is_index)
 {
     PageSchema page_schema = getPageSchema(page_id);
     size_t pos = kOffsetOfPageHeader;
@@ -62,11 +62,16 @@ bool BPlusTreeSearch(size_t page_id, char *key, bool is_index)
     while (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, compare_size) >= 0)
         pos += page_schema.key_size + page_schema.value_size;
     if (page_schema.leaf)
-        return pos > kOffsetOfPageHeader && std::memcmp(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, compare_size) == 0;
+    {
+        if (pos > kOffsetOfPageHeader && std::memcmp(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, compare_size) == 0)
+            return page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size;
+        else
+            return nullptr;
+    }
     else
     {
         if (pos == kOffsetOfPageHeader)
-            return false;
+            return nullptr;
         else
         {
             size_t child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size);
@@ -254,7 +259,7 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
     {
         if (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, page_schema.key_size) == 0)
         {
-            std::copy(page_schema.page_buffer + pos + page_schema.value_size + page_schema.key_size, page_schema.page_buffer + pos, page_schema.page_buffer + pos);
+            std::copy(page_schema.page_buffer + pos + page_schema.value_size + page_schema.key_size, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + pos);
             --page_schema.size;
             std::copy(reinterpret_cast<const char *>(&page_schema.size), reinterpret_cast<const char *>(&page_schema.size) + kSizeOfSizeT, page_schema.page_buffer + kOffsetOfSize);
             file_system.write(page_schema.page_id, page_schema.page_ptr);

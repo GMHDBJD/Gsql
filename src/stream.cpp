@@ -20,7 +20,7 @@ Stream &operator>>(Stream &stream, TableSchema &table_schema)
 
 Stream &operator>>(Stream &stream, ColumnSchema &column_schema)
 {
-  stream >> column_schema.data_type >> column_schema.not_null >> column_schema.null_default >> column_schema.unique >> column_schema.index_schema >> column_schema.default_value >> column_schema.reference_table_name >> column_schema.reference_column_name;
+  stream >> column_schema.data_type >> column_schema.not_null >> column_schema.null_default >> column_schema.unique >> column_schema.index_schema >> column_schema.default_value >> column_schema.reference_table_name >> column_schema.reference_column_name >> column_schema.be_reference_set;
   return stream;
 }
 
@@ -50,7 +50,7 @@ Stream &operator<<(Stream &stream, const TableSchema &table_schema)
 
 Stream &operator<<(Stream &stream, const ColumnSchema &column_schema)
 {
-  stream << column_schema.data_type << column_schema.not_null << column_schema.null_default << column_schema.unique << column_schema.index_schema << column_schema.default_value << column_schema.reference_table_name << column_schema.reference_column_name;
+  stream << column_schema.data_type << column_schema.not_null << column_schema.null_default << column_schema.unique << column_schema.index_schema << column_schema.default_value << column_schema.reference_table_name << column_schema.reference_column_name << column_schema.be_reference_set;
   return stream;
 }
 
@@ -97,7 +97,7 @@ size_t getSize(const TableSchema &table_schema)
 
 size_t getSize(const ColumnSchema &column_schema)
 {
-  return getSize(column_schema.data_type) + getSize(column_schema.not_null) + getSize(column_schema.null_default) + getSize(column_schema.unique) + getSize(column_schema.index_schema) + getSize(column_schema.default_value) + getSize(column_schema.reference_table_name) + getSize(column_schema.reference_column_name);
+  return getSize(column_schema.data_type) + getSize(column_schema.not_null) + getSize(column_schema.null_default) + getSize(column_schema.unique) + getSize(column_schema.index_schema) + getSize(column_schema.default_value) + getSize(column_schema.reference_table_name) + getSize(column_schema.reference_column_name) + getSize(column_schema.be_reference_set);
 }
 
 size_t getSize(const IndexSchema &index_schema)

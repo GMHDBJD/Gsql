@@ -43,6 +43,26 @@ public:
     }
 };
 
+class MyPairHashFunction
+{
+public:
+    template <typename T, typename U>
+    size_t operator()(const std::pair<T, U> &pair) const
+    {
+        return std::hash<T>()(pair.first) + std::hash<U>()(pair.second);
+    }
+};
+
+class MyPairEqualFunction
+{
+public:
+    template <typename T, typename U>
+    size_t operator()(const std::pair<T, U> &lhs, const std::pair<T, U> &rhs) const
+    {
+        return lhs == rhs;
+    }
+};
+
 struct Settings
 {
     std::string database_dir;
@@ -82,6 +102,7 @@ struct ColumnSchema
     std::string default_value;
     std::string reference_table_name;
     std::string reference_column_name;
+    std::unordered_set<std::pair<std::string, std::string>, MyPairHashFunction, MyPairEqualFunction> be_reference_set;
 };
 
 struct TableSchema

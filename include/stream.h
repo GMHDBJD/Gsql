@@ -49,6 +49,12 @@ size_t getSize(const std::deque<T> &data)
   return size;
 }
 
+template <typename T, typename U>
+size_t getSize(const std::pair<T, U> &pair)
+{
+  return getSize(pair.first) + getSize(pair.second);
+}
+
 size_t getSize(const std::string &data);
 
 size_t getSize(const DatabaseSchema &database_schema);
@@ -163,6 +169,13 @@ Stream &operator<<(Stream &stream, const std::deque<T> &data)
   return stream;
 }
 
+template <typename T, typename U>
+Stream &operator<<(Stream &stream, const std::pair<T, U> &pair)
+{
+  stream << pair.first << pair.second;
+  return stream;
+}
+
 template <typename T>
 Stream &operator>>(Stream &stream, T &data)
 {
@@ -256,6 +269,13 @@ Stream &operator>>(Stream &stream, std::deque<T> &data)
   for (size_t i = 0; i < size; ++i)
     stream >> temp_deque[i];
   data.swap(temp_deque);
+  return stream;
+}
+
+template <typename T, typename U>
+Stream &operator>>(Stream &stream, std::pair<T, U> &pair)
+{
+  stream >> pair.first >> pair.second;
   return stream;
 }
 

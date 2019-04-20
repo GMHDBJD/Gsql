@@ -29,7 +29,7 @@ private:
         "SELECT test.id FROM test;",
         "SELECT 9*9-(8+5)=8*4/5 FROM test JOIN other ON test.name=other.name JOIN another on other.val = another.val where test.id=1;",
         "UPDATE test SET id=id&1;",
-        "DELETE FROM test WHERE id>6;",
+        "DELETE test FROM test,another join other on another.id=other.id WHERE id>6;",
         "ALTER TABLE test ADD str CHAR;",
         "DROP TABLE test;",
         "DROP DATABASE gsql;",

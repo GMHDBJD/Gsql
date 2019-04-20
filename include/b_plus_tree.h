@@ -12,7 +12,7 @@ size_t BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size
 
 void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id);
 
-bool BPlusTreeSearch(size_t page_id, char *key, bool is_index);
+char* BPlusTreeSearch(size_t page_id, char *key, bool is_index);
 
 void BPlusTreeRemove(size_t page_id);
 

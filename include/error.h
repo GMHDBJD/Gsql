@@ -34,7 +34,8 @@ enum ErrorType
   kIndexNotExistError,
   kDuplicateEntryError,
   kColumnNotNullError,
-  kForeignkeyConstraintError
+  kForeignkeyConstraintError,
+  kUnkownTableError
 };
 
 class Error : public std::exception

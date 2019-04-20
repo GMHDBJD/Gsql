@@ -16,6 +16,7 @@ enum ResultType
     kDropDatabaseResult,
     kCreateTableResult,
     kDropTableResult,
+    kDeleteResult,
     kExplainResult,
     kExitResult,
     kCreateIndexResult,

@@ -244,6 +244,9 @@ void Shell::showError(const Error &error)
     case kForeignkeyConstraintError:
         std::cout << "foreign key constraint error" << std::endl;
         break;
+    case kUnkownTableError:
+        std::cout << "unkown table '" << error.what() << "' in multiple delete" << std::endl;
+        break;
     default:
         break;
     }

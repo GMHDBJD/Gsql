@@ -30,7 +30,7 @@ public:
   void execInsert(Node &);
   void execSelect(Node &);
   void execUpdate(const Node &){};
-  void execDelete(const Node &);
+  void execDelete(Node &);
   void execAlter(const Node &){};
   void execDrop(const Node &);
   void execCreateTable(const Node &);
@@ -111,6 +111,8 @@ public:
 
   void selectRecursive(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::vector<Node> &select_expr_vector, size_t limit);
   void selectRecursiveAux(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::vector<Node> &select_expr_vector, size_t limit);
+  void deleteRecursive(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &, const std::unordered_set<std::string> &, const std::unordered_set<std::string> &, std::unordered_map<std::string, size_t> &table_id_page_map);
+  void deleteRecursiveAux(const std::unordered_map<std::string, std::pair<IndexSchema, std::pair<Token, Token>>> &table_index_condition, const std::unordered_map<std::unordered_set<std::string>, std::vector<Node>, MySetHashFunction> &table_condition_map, std::unordered_set<std::string> table_set, std::unordered_set<std::string>, const std::unordered_map<std::string, std::unordered_map<std::string, Token>> table_column, const std::unordered_set<std::string> &, std::unordered_map<std::string, size_t> &table_id_page_map, std::unordered_map<std::string, size_t> table_id_map);
   std::pair<IndexSchema, std::pair<Token, Token>> getCondition(std::vector<Node> &expr_vector)
   {
     std::unordered_map<IndexSchema, std::pair<Token, Token>, MyIndexSchemaHashFunction, MyIndexSchemaEqualFunction> index_condition_map;

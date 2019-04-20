@@ -183,10 +183,23 @@ Node Parser::parseSelect()
 Node Parser::parseDelete()
 {
     Node delete_node{match(kDelete)};
-    match(kFrom);
-    build(parseName(2), &delete_node);
-    if (lookAhead().token_type == kWhere)
-        build(parseWhere(), &delete_node);
+    if (lookAhead().token_type == kFrom)
+    {
+        next();
+        build(parseName(2), &delete_node);
+        if (lookAhead().token_type == kWhere)
+            build(parseWhere(), &delete_node);
+    }
+    else
+    {
+        build(parseNames(2), &delete_node);
+        match(kFrom);
+        build(parseNames(2), &delete_node);
+        if (lookAhead().token_type == kJoin)
+            build(parseJoins(), &delete_node);
+        if (lookAhead().token_type == kWhere)
+            build(parseWhere(), &delete_node);
+    }
     return delete_node;
 }
 
