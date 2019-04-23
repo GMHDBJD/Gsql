@@ -73,6 +73,11 @@ void serilization(const std::vector<Token> &values, const std::vector<size_t> &v
             else if (values[i].token_type == kString)
             {
                 std::copy(values[i].str.c_str(), values[i].str.c_str() + values[i].str.size() + 1, values_ptr + pos);
+                if (values[i].str.size() + 1 < values_size[i])
+                {
+                    size_t cnt = values_size[i] - values[i].str.size() - 1;
+                    memset(values_ptr + pos + values[i].str.size() + 1, '\0', cnt);
+                }
                 pos += values_size[i];
             }
         }
@@ -101,7 +106,8 @@ void convertInt(Token &token)
 
 void convertString(Token &token)
 {
-    token.token_type = kString;
+    if (token.token_type != kNone)
+        token.token_type = kString;
 }
 
 void check(Node &node, const std::unordered_set<std::string> &table_name_set, const std::string database_name, const DatabaseSchema &database_schema)
