@@ -39,4 +39,9 @@ bool partitionConditionForTable(const std::vector<Node> &, std::unordered_map<st
 void getTableSet(const Node &, std::unordered_set<std::string> *);
 
 bool isIndexCondition(const Node &node);
+
+int compareInt(char *lhs, char *rhs, size_t size);
+
+int compareString(char *lhs, char *rhs, size_t size);
+
 #endif

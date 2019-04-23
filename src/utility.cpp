@@ -173,7 +173,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kNot:
     {
@@ -189,7 +194,11 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(next_node);
+            return new_node;
+        }
     }
     case kOr:
     {
@@ -211,7 +220,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kLess:
     {
@@ -232,7 +246,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kGreater:
     {
@@ -253,7 +272,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kLessEqual:
     {
@@ -274,7 +298,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kGreaterEqual:
     {
@@ -295,7 +324,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kEqual:
     {
@@ -318,7 +352,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
             throw Error(kOperationError, "");
 
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kNotEqual:
     {
@@ -339,7 +378,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kPlus:
     {
@@ -357,7 +401,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kMinus:
     {
@@ -377,7 +426,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
             else if (!remain)
                 throw Error(kOperationError, "");
             else
-                return node;
+            {
+                Node new_node{node.token};
+                new_node.children.push_back(left_node);
+                new_node.children.push_back(right_node);
+                return new_node;
+            }
         }
         else
         {
@@ -393,7 +447,11 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
             else if (!remain)
                 throw Error(kOperationError, "");
             else
-                return node;
+            {
+                Node new_node{node.token};
+                new_node.children.push_back(next_node);
+                return new_node;
+            }
         }
     }
     case kMultiply:
@@ -412,7 +470,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kDivide:
     {
@@ -430,7 +493,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kMod:
     {
@@ -448,7 +516,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kShiftLeft:
     {
@@ -466,7 +539,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kShiftRight:
     {
@@ -484,7 +562,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kBitsExclusiveOr:
     {
@@ -502,7 +585,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kBitsAnd:
     {
@@ -520,7 +608,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kBitsOr:
     {
@@ -538,7 +631,12 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(left_node);
+            new_node.children.push_back(right_node);
+            return new_node;
+        }
     }
     case kBitsNot:
     {
@@ -554,7 +652,11 @@ Node eval(const Node &node, const std::unordered_map<std::string, std::unordered
         else if (!remain)
             throw Error(kOperationError, "");
         else
-            return node;
+        {
+            Node new_node{node.token};
+            new_node.children.push_back(next_node);
+            return new_node;
+        }
     }
     case kNum:
     case kNull:
@@ -639,7 +741,7 @@ void getTableSet(const Node &expr_node, std::unordered_set<std::string> *table_s
 
 std::unordered_map<std::string, Token> toTokenMap(const char *value, const TableSchema &table_schema, size_t key_size, size_t *id)
 {
-    size_t pos = key_size + kSizeOfBool;
+    size_t pos = 0;
     pos += kSizeOfBool;
     *id = *reinterpret_cast<const size_t *>(value + pos);
     pos += kSizeOfSizeT;
@@ -678,7 +780,7 @@ std::unordered_map<std::string, Token> toTokenMap(const char *value, const Table
 
 std::vector<Token> toTokenResultVector(const char *value, const std::vector<int> data_type_vector, size_t key_size)
 {
-    size_t pos = key_size + kSizeOfBool;
+    size_t pos = 0;
     pos += kSizeOfBool;
     size_t id = *reinterpret_cast<const size_t *>(value + pos);
     pos += kSizeOfSizeT;
@@ -712,4 +814,39 @@ std::vector<Token> toTokenResultVector(const char *value, const std::vector<int>
         }
     }
     return token_vector;
+}
+
+int compareInt(char *lhs, char *rhs, size_t size)
+{
+    if (!*reinterpret_cast<const bool *>(lhs) && !*reinterpret_cast<const bool *>(rhs))
+    {
+        long lhs_value = *reinterpret_cast<const long *>(lhs + kSizeOfBool);
+        long rhs_value = *reinterpret_cast<const long *>(rhs + kSizeOfBool);
+        if (lhs_value == rhs_value)
+        {
+            if (size == kSizeOfLong + kSizeOfBool)
+                return 0;
+            else
+            {
+                return std::memcmp(lhs, rhs, size);
+            }
+        }
+        else if (lhs_value < rhs_value)
+            return -1;
+        else
+            return 1;
+    }
+    else if (*reinterpret_cast<const bool *>(lhs) && *reinterpret_cast<const bool *>(rhs))
+    {
+        return 0;
+    }
+    else if (*reinterpret_cast<const bool *>(lhs))
+        return -1;
+    else
+        return 1;
+}
+
+int compareString(char *lhs, char *rhs, size_t size)
+{
+    return std::memcmp(lhs, rhs, size);
 }

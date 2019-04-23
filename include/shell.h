@@ -8,7 +8,6 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-
 class Shell
 {
 public:
@@ -23,6 +22,7 @@ public:
   std::string getInput();
   void showResult(const Result &);
   void showError(const Error &error);
+  void showClock(double duration);
 
 private:
   std::string buffer;

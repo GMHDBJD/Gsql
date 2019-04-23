@@ -150,16 +150,16 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kLessEqual, "LESSEQUAL"));
+                    token_queue.push(Token(kLessEqual, str));
                 }
                 else if (c == '<')
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kShiftLeft, "SHIFTLEFT"));
+                    token_queue.push(Token(kShiftLeft, str));
                 }
                 else
-                    token_queue.push(Token(kLess, "LESS"));
+                    token_queue.push(Token(kLess, str));
             }
             else if (str == ">")
             {
@@ -167,16 +167,16 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kGreaterEqual, "GREATEREQUAL"));
+                    token_queue.push(Token(kGreaterEqual, str));
                 }
                 else if (c == '>')
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kShiftRight, "SHIFTRIGHT"));
+                    token_queue.push(Token(kShiftRight, str));
                 }
                 else
-                    token_queue.push(Token(kGreater, "GREATER"));
+                    token_queue.push(Token(kGreater, str));
             }
             else if (str == "!")
             {
@@ -184,23 +184,23 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kNotEqual, "NOTEQUAL"));
+                    token_queue.push(Token(kNotEqual,str));
                 }
                 else
-                    token_queue.push(Token(kNot, "NOT"));
+                    token_queue.push(Token(kNot,str));
             }
             else if (str == "=")
-                token_queue.push(Token(kEqual, "EQUAL"));
+                token_queue.push(Token(kEqual,str));
             else if (str == "&")
             {
                 if ((c = lookAhead()) == '&')
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kAnd, "AND"));
+                    token_queue.push(Token(kAnd, str));
                 }
                 else
-                    token_queue.push(Token(kBitsAnd, "BITSAND"));
+                    token_queue.push(Token(kBitsAnd,str));
             }
             else if (str == "|")
             {
@@ -208,35 +208,35 @@ std::queue<Token> Lexer::lex(const std::string &input)
                 {
                     str += c;
                     next();
-                    token_queue.push(Token(kOr, "OR"));
+                    token_queue.push(Token(kOr,str));
                 }
                 else
-                    token_queue.push(Token(kBitsOr, "BITSOR"));
+                    token_queue.push(Token(kBitsOr,str));
             }
             else if (str == "+")
-                token_queue.push(Token(kPlus, "PLUS"));
+                token_queue.push(Token(kPlus,str));
             else if (str == "-")
-                token_queue.push(Token(kMinus, "MINUS"));
+                token_queue.push(Token(kMinus, str));
             else if (str == "*")
-                token_queue.push(Token(kMultiply, "MULTIPLY"));
+                token_queue.push(Token(kMultiply,str));
             else if (str == "/")
-                token_queue.push(Token(kDivide, "DIVIDE"));
+                token_queue.push(Token(kDivide,str));
             else if (str == "(")
-                token_queue.push(Token(kLeftParenthesis, "LEFTPARENTHESIS"));
+                token_queue.push(Token(kLeftParenthesis,str));
             else if (str == ")")
-                token_queue.push(Token(kRightParenthesis, "RIGHTPARENTHESIS"));
+                token_queue.push(Token(kRightParenthesis, str));
             else if (str == ",")
-                token_queue.push(Token(kComma, "COMMA"));
+                token_queue.push(Token(kComma, str));
             else if (str == ";")
-                token_queue.push(Token(kSemicolon, "SEMICOLON"));
+                token_queue.push(Token(kSemicolon,str));
             else if (str == ".")
-                token_queue.push(Token(kFullStop, "FULLSTOP"));
+                token_queue.push(Token(kFullStop,str));
             else if (str == "^")
-                token_queue.push(Token(kBitsExclusiveOr, "BITSEXCLUSIVEOR"));
+                token_queue.push(Token(kBitsExclusiveOr,str));
             else if (str == "%")
-                token_queue.push(Token(kMod, "MOD"));
+                token_queue.push(Token(kMod,str));
             else if (str == "~")
-                token_queue.push(Token(kBitsNot, "BITSNOT"));
+                token_queue.push(Token(kBitsNot,str));
             else
                 throw Error(kSqlError, str);
         }

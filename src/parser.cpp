@@ -384,16 +384,20 @@ Node Parser::parseColumn()
 Node Parser::parseName(size_t count)
 {
     size_t cnt = 1;
+    std::string str = lookAhead().str;
     Node name_node{Token(kName, "NAME")};
     build(match(kStr), &name_node);
     while (lookAhead().token_type == kFullStop)
     {
+        str += lookAhead().str;
         next();
         ++cnt;
         if (cnt > count)
             throw Error(kSqlError, ".");
+        str += lookAhead().str;
         build(match(kStr), &name_node);
     }
+    name_node.token.str = str;
     return name_node;
 }
 
@@ -453,10 +457,15 @@ Node Parser::parseOr()
     Node or_node = parseAnd();
     while (lookAhead().token_type == kOr)
     {
+        std::string str = or_node.token.str;
+        str += lookAhead().str;
         Node new_or_node{next()};
+        Node other_node = parseAnd();
+        str += other_node.token.str;
         build(or_node, &new_or_node);
-        build(parseAnd(), &new_or_node);
+        build(other_node, &new_or_node);
         or_node = std::move(new_or_node);
+        or_node.token.str = str;
     }
     return or_node;
 }
@@ -466,10 +475,15 @@ Node Parser::parseAnd()
     Node and_node = parseBitsOr();
     while (lookAhead().token_type == kAnd)
     {
+        std::string str = and_node.token.str;
+        str += lookAhead().str;
         Node new_and_node{next()};
+        Node other_node = parseBitsOr();
+        str += other_node.token.str;
         build(and_node, &new_and_node);
-        build(parseBitsOr(), &new_and_node);
+        build(other_node, &new_and_node);
         and_node = std::move(new_and_node);
+        and_node.token.str = str;
     }
     return and_node;
 }
@@ -479,10 +493,15 @@ Node Parser::parseBitsOr()
     Node bits_or_node = parseBitsExclusiveOr();
     while (lookAhead().token_type == kBitsOr)
     {
+        std::string str = bits_or_node.token.str;
+        str += lookAhead().str;
         Node new_bits_or_node{next()};
+        Node other_node = parseBitsExclusiveOr();
+        str += other_node.token.str;
         build(bits_or_node, &new_bits_or_node);
-        build(parseBitsExclusiveOr(), &new_bits_or_node);
+        build(other_node, &new_bits_or_node);
         bits_or_node = std::move(new_bits_or_node);
+        bits_or_node.token.str = str;
     }
     return bits_or_node;
 }
@@ -492,10 +511,15 @@ Node Parser::parseBitsExclusiveOr()
     Node bits_exclusive_or_node = parseBitsAnd();
     while (lookAhead().token_type == kBitsExclusiveOr)
     {
+        std::string str = bits_exclusive_or_node.token.str;
+        str += lookAhead().str;
         Node new_bits_exclusive_or_node{next()};
+        Node other_node = parseBitsAnd();
+        str += other_node.token.str;
         build(bits_exclusive_or_node, &new_bits_exclusive_or_node);
-        build(parseBitsAnd(), &new_bits_exclusive_or_node);
+        build(other_node, &new_bits_exclusive_or_node);
         bits_exclusive_or_node = new_bits_exclusive_or_node;
+        bits_exclusive_or_node.token.str = str;
     }
     return bits_exclusive_or_node;
 }
@@ -505,10 +529,15 @@ Node Parser::parseBitsAnd()
     Node bits_and_node = parseEqualOrNot();
     while (lookAhead().token_type == kBitsAnd)
     {
+        std::string str = bits_and_node.token.str;
+        str += lookAhead().str;
         Node new_bits_and_node{next()};
+        Node other_node = parseEqualOrNot();
+        str += other_node.token.str;
         build(bits_and_node, &new_bits_and_node);
-        build(parseEqualOrNot(), &new_bits_and_node);
+        build(other_node, &new_bits_and_node);
         bits_and_node = std::move(new_bits_and_node);
+        bits_and_node.token.str = str;
     }
     return bits_and_node;
 }
@@ -519,10 +548,15 @@ Node Parser::parseEqualOrNot()
     TokenType token_type;
     while ((token_type = lookAhead().token_type) == kEqual || token_type == kNotEqual)
     {
+        std::string str = equal_or_not_node.token.str;
+        str += lookAhead().str;
         Node new_equal_or_not_node{next()};
+        Node other_node = parseCompare();
+        str += other_node.token.str;
         build(equal_or_not_node, &new_equal_or_not_node);
-        build(parseCompare(), &new_equal_or_not_node);
+        build(other_node, &new_equal_or_not_node);
         equal_or_not_node = std::move(new_equal_or_not_node);
+        equal_or_not_node.token.str = str;
     }
     return equal_or_not_node;
 }
@@ -533,10 +567,15 @@ Node Parser::parseCompare()
     TokenType token_type;
     while ((token_type = lookAhead().token_type) == kLess || token_type == kLessEqual || token_type == kGreater || token_type == kGreaterEqual)
     {
+        std::string str = compare_node.token.str;
+        str += lookAhead().str;
         Node new_compare_node{next()};
+        Node other_node = parseShift();
+        str += other_node.token.str;
         build(compare_node, &new_compare_node);
-        build(parseShift(), &new_compare_node);
+        build(other_node, &new_compare_node);
         compare_node = std::move(new_compare_node);
+        compare_node.token.str = str;
     }
     return compare_node;
 }
@@ -547,10 +586,15 @@ Node Parser::parseShift()
     TokenType token_type;
     while ((token_type = lookAhead().token_type) == kShiftLeft || token_type == kShiftRight)
     {
+        std::string str = shift_node.token.str;
+        str += lookAhead().str;
         Node new_shift_node{next()};
+        Node other_node = parsePlusMinus();
+        str += other_node.token.str;
         build(shift_node, &new_shift_node);
-        build(parsePlusMinus(), &new_shift_node);
+        build(other_node, &new_shift_node);
         shift_node = std::move(new_shift_node);
+        shift_node.token.str = str;
     }
     return shift_node;
 }
@@ -561,10 +605,15 @@ Node Parser::parsePlusMinus()
     TokenType token_type;
     while ((token_type = lookAhead().token_type) == kPlus || token_type == kMinus)
     {
+        std::string str = plus_minus_node.token.str;
+        str += lookAhead().str;
         Node new_plus_minus_node{next()};
+        Node other_node = parseMultiplyDivideMod();
+        str += other_node.token.str;
         build(plus_minus_node, &new_plus_minus_node);
-        build(parseMultiplyDivideMod(), &new_plus_minus_node);
+        build(other_node, &new_plus_minus_node);
         plus_minus_node = std::move(new_plus_minus_node);
+        plus_minus_node.token.str = str;
     }
     return plus_minus_node;
 }
@@ -575,10 +624,15 @@ Node Parser::parseMultiplyDivideMod()
     TokenType token_type;
     while ((token_type = lookAhead().token_type) == kMultiply || token_type == kDivide || token_type == kMod)
     {
+        std::string str = multiply_divide_mod_node.token.str;
+        str += lookAhead().str;
         Node new_multiply_divide_mod_node{next()};
+        Node other_node = parseNotOrBitsNegative();
+        str += other_node.token.str;
         build(multiply_divide_mod_node, &new_multiply_divide_mod_node);
-        build(parseNotOrBitsNegative(), &new_multiply_divide_mod_node);
+        build(other_node, &new_multiply_divide_mod_node);
         multiply_divide_mod_node = std::move(new_multiply_divide_mod_node);
+        multiply_divide_mod_node.token.str = str;
     }
     return multiply_divide_mod_node;
 }
@@ -588,8 +642,12 @@ Node Parser::parseNotOrBitsNegative()
     TokenType token_type = lookAhead().token_type;
     if (token_type == kNot || token_type == kBitsNot || token_type == kMinus)
     {
+        std::string str = lookAhead().str;
         Node not_or_bits_negative{next()};
-        build(parseItem(), &not_or_bits_negative);
+        Node other_node = parseItem();
+        str += other_node.token.str;
+        build(other_node, &not_or_bits_negative);
+        not_or_bits_negative.token.str = str;
         return not_or_bits_negative;
     }
     Node item_node = parseItem();
@@ -603,9 +661,13 @@ Node Parser::parseItem()
     {
     case kLeftParenthesis:
     {
+        std::string str = lookAhead().str;
         next();
         item_node = parseOr();
+        str += item_node.token.str;
+        str += lookAhead().str;
         match(kRightParenthesis);
+        item_node.token.str = str;
         return item_node;
     }
     case kNum:

@@ -1,4 +1,5 @@
 #include "shell.h"
+#include <iomanip>
 #include <iostream>
 
 std::string Shell::getInput()
@@ -105,29 +106,82 @@ void Shell::showResult(const Result &result)
         std::cout << "drop table" << std::endl;
         break;
     case kExplainResult:
-        std::cout << "column_name\tdefault_type\tnot_null\tunique\tdefault_value\treference_table_name\treference_column_name" << std::endl;
+    {
+        int width = 20;
+        std::cout << std::left << std::setw(width) << std::setfill(' ') << "column_name"
+                  << "default_type"
+                  << "notnull"
+                  << "unique"
+                  << "default_value"
+                  << "reference_table_name"
+                  << "reference_column_name" << std::endl;
         for (auto &&i : result.string_vector_vector)
         {
             for (auto &&j : i)
             {
-                std::cout << j << "\t";
+                std::cout << std::left << std::setw(width) << std::setfill(' ') << j;
             }
             std::cout << std::endl;
         }
         break;
+    }
     case kExitResult:
         std::cout << "bye" << std::endl;
         break;
     case kSelectResult:
-        for (auto &&i : result.string_vector_vector)
+    {
+        if (result.count == 0)
+            std::cout << "empty set" << std::endl;
+        else
         {
-            for (auto &&j : i)
+            if (result.first)
             {
-                std::cout << j << "\t";
+                for (size_t col = 0; col < result.header.size(); col++)
+                {
+                    int width = result.data_type_vector[col] == 0 ? 19 : result.data_type_vector[col];
+                    width = width >= result.header[col].size() ? width : result.header[col].size();
+                    std::cout << "+" << std::left << std::setw(width) << std::setfill('-') << '-';
+                }
+                std::cout << "+" << std::endl;
+                for (size_t col = 0; col < result.header.size(); col++)
+                {
+                    int width = result.data_type_vector[col] == 0 ? 19 : result.data_type_vector[col];
+                    width = width >= result.header[col].size() ? width : result.header[col].size();
+                    std::cout << "|" << std::left << std::setw(width) << std::setfill(' ') << result.header[col];
+                }
+                std::cout << "|" << std::endl;
+                for (size_t col = 0; col < result.header.size(); col++)
+                {
+                    int width = result.data_type_vector[col] == 0 ? 19 : result.data_type_vector[col];
+                    width = width >= result.header[col].size() ? width : result.header[col].size();
+                    std::cout << "+" << std::left << std::setw(width) << std::setfill('-') << '-';
+                }
+                std::cout << "+" << std::endl;
             }
-            std::cout << std::endl;
+            for (auto &&row : result.string_vector_vector)
+            {
+                for (size_t col = 0; col < row.size(); col++)
+                {
+                    int width = result.data_type_vector[col] == 0 ? 19 : result.data_type_vector[col];
+                    width = width >= result.header[col].size() ? width : result.header[col].size();
+                    std::cout << "|" << std::right << std::setw(width) << std::setfill(' ') << row[col];
+                }
+                std::cout << "|" << std::endl;
+            }
+            if (result.last)
+            {
+                for (size_t col = 0; col < result.header.size(); col++)
+                {
+                    int width = result.data_type_vector[col] == 0 ? 19 : result.data_type_vector[col];
+                    width = width >= result.header[col].size() ? width : result.header[col].size();
+                    std::cout << "+" << std::left << std::setw(width) << std::setfill('-') << '-';
+                }
+                std::cout << "+" << std::endl;
+                std::cout << result.count << " row in set" << std::endl;
+            }
         }
         break;
+    }
     case kShowIndexResult:
         for (auto &&i : result.string_vector_vector.front())
         {
@@ -139,6 +193,9 @@ void Shell::showResult(const Result &result)
         break;
     case kDropIndexResult:
         std::cout << "drop index" << std::endl;
+        break;
+    case kInsertResult:
+    case kDeleteResult:
         break;
     default:
         break;
@@ -236,7 +293,7 @@ void Shell::showError(const Error &error)
         std::cout << "index '" << error.what() << "' not exist" << std::endl;
         break;
     case kDuplicateEntryError:
-        std::cout << "duplicate entry " << error.what() << std::endl;
+        std::cout << "duplicate entry " << error.what() << "'" << std::endl;
         break;
     case kColumnNotNullError:
         std::cout << "column '" << error.what() << "' can't be null" << std::endl;
@@ -247,7 +304,15 @@ void Shell::showError(const Error &error)
     case kUnkownTableError:
         std::cout << "unkown table '" << error.what() << "' in multiple delete" << std::endl;
         break;
+    case kDataOverFlowError:
+        std::cout << "data over flow" << std::endl;
+        break;
     default:
         break;
     }
+}
+
+void Shell::showClock(double duration)
+{
+    std::cout << "(" << std::fixed << std::setprecision(2) << duration << " sec)" << std::endl;
 }

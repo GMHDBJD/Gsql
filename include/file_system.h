@@ -12,6 +12,10 @@ class FileSystem
 public:
   void read(size_t page_id, PagePtr page_ptr)
   {
+    if ((page_id + 1) * kPageSize > file_size_)
+    {
+      write(page_id, page_ptr);
+    }
     file_.seekg(page_id * kPageSize);
     file_.read(page_ptr->buffer, kPageSize);
   };
@@ -20,9 +24,12 @@ public:
     file_.seekp(page_id * kPageSize);
     file_.write(page_ptr->buffer, kPageSize);
     file_.flush();
+    if ((page_id + 1) * kPageSize > file_size_)
+      file_size_ = (page_id + 1) * kPageSize;
   }
   void setFile(std::string filename)
   {
+    file_size_ = 0;
     if (file_.is_open())
     {
       file_.close();
@@ -30,6 +37,8 @@ public:
     if (!filename.empty())
     {
       file_.open(filename, std::fstream::in | std::fstream::out | std::fstream::binary);
+      file_.seekg(0, file_.end);
+      file_size_ = file_.tellg();
     }
     filename_ = filename;
   }
@@ -77,6 +86,7 @@ private:
   FileSystem() {}
   std::fstream file_;
   std::string filename_;
+  size_t file_size_ = 0;
 };
 
 #endif

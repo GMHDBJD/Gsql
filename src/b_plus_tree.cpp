@@ -11,6 +11,11 @@ bool pageIsMinimum(const PageSchema &page_schema)
     return kOffsetOfPageHeader + (2 * page_schema.size + 1) * (page_schema.key_size + page_schema.value_size) < kPageSize;
 }
 
+bool dataOverFlow(size_t key_size, size_t value_size)
+{
+    return (kPageSize - kOffsetOfPageHeader) / (key_size + value_size) < 3;
+}
+
 PageSchema getPageSchema(size_t page_id)
 {
     BufferPool &buffer_pool = BufferPool::getInstance();
@@ -24,6 +29,8 @@ PageSchema getPageSchema(size_t page_id)
     page_schema.key_size = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfKeySize);
     page_schema.index_size = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfIndexSize);
     page_schema.value_size = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfValueSize);
+    page_schema.cmp = *reinterpret_cast<const bool *>(page_schema.page_buffer + kOffsetOfCompareType);
+    page_schema.compare = page_schema.cmp ? compareInt : compareString;
     page_schema.total_size = kOffsetOfPageHeader + page_schema.size * (page_schema.key_size + page_schema.value_size);
     page_schema.page_id = page_id;
     return page_schema;
@@ -35,7 +42,7 @@ size_t BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size
     PageSchema page_schema = getPageSchema(page_id);
     if (pageIsFull(page_schema))
     {
-        PageSchema new_page_schema(false, 0, -1, -1, page_schema.key_size, page_schema.index_size, page_schema.value_size);
+        PageSchema new_page_schema(false, 0, -1, -1, page_schema.key_size, page_schema.index_size, kSizeOfSizeT, page_schema.cmp);
         char *left_key = page_schema.page_buffer + kOffsetOfPageHeader;
         char *middle_key = new char[page_schema.key_size];
         size_t right_child_page_id = splitFullPage(page_id, middle_key);
@@ -54,39 +61,13 @@ size_t BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size
     return insertNonFullPage(page_id, key, value, unique);
 }
 
-char *BPlusTreeSearch(size_t page_id, char *key, bool is_index)
-{
-    PageSchema page_schema = getPageSchema(page_id);
-    size_t pos = kOffsetOfPageHeader;
-    size_t compare_size = is_index ? page_schema.index_size : page_schema.key_size;
-    while (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, compare_size) >= 0)
-        pos += page_schema.key_size + page_schema.value_size;
-    if (page_schema.leaf)
-    {
-        if (pos > kOffsetOfPageHeader && std::memcmp(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, compare_size) == 0)
-            return page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size;
-        else
-            return nullptr;
-    }
-    else
-    {
-        if (pos == kOffsetOfPageHeader)
-            return nullptr;
-        else
-        {
-            size_t child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size);
-            return BPlusTreeSearch(child_page_id, key, is_index);
-        }
-    }
-}
-
 size_t createNewPage(const PageSchema &page_schema)
 {
     GDBE &gdbe = GDBE::getInstance();
     size_t new_page_id = gdbe.getFreePage();
     BufferPool &buffer_pool = BufferPool::getInstance();
     FileSystem &file_system = FileSystem::getInstance();
-    PagePtr page_ptr = buffer_pool.getPage(new_page_id, true);
+    PagePtr page_ptr = buffer_pool.getPage(new_page_id);
     char *new_page_buffer = page_ptr->buffer;
     std::copy(reinterpret_cast<const char *>(&page_schema.leaf), reinterpret_cast<const char *>(&page_schema.leaf) + kSizeOfBool, new_page_buffer + kOffsetOfLeaf);
     std::copy(reinterpret_cast<const char *>(&page_schema.size), reinterpret_cast<const char *>(&page_schema.size) + kSizeOfSizeT, new_page_buffer + kOffsetOfSize);
@@ -95,6 +76,7 @@ size_t createNewPage(const PageSchema &page_schema)
     std::copy(reinterpret_cast<const char *>(&page_schema.key_size), reinterpret_cast<const char *>(&page_schema.key_size) + kSizeOfSizeT, new_page_buffer + kOffsetOfKeySize);
     std::copy(reinterpret_cast<const char *>(&page_schema.index_size), reinterpret_cast<const char *>(&page_schema.index_size) + kSizeOfSizeT, new_page_buffer + kOffsetOfIndexSize);
     std::copy(reinterpret_cast<const char *>(&page_schema.value_size), reinterpret_cast<const char *>(&page_schema.value_size) + kSizeOfSizeT, new_page_buffer + kOffsetOfValueSize);
+    std::copy(reinterpret_cast<const char *>(&page_schema.cmp), reinterpret_cast<const char *>(&page_schema.cmp) + kSizeOfBool, new_page_buffer + kOffsetOfCompareType);
     file_system.write(new_page_id, page_ptr);
     return new_page_id;
 }
@@ -105,11 +87,11 @@ size_t insertNonFullPage(size_t page_id, char *key, char *value, bool unique)
     PageSchema page_schema = getPageSchema(page_id);
     bool null = true;
     size_t pos = kOffsetOfPageHeader;
-    while (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, page_schema.key_size) >= 0)
+    while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, page_schema.key_size) >= 0)
         pos += page_schema.key_size + page_schema.value_size;
     if (page_schema.leaf)
     {
-        if (unique && pos > kOffsetOfPageHeader && std::memcmp(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, page_schema.index_size) == 0)
+        if (unique && pos > kOffsetOfPageHeader && page_schema.compare(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, page_schema.index_size) == 0)
             return -1;
         std::copy_backward(page_schema.page_buffer + pos, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + page_schema.total_size + page_schema.key_size + page_schema.value_size);
         std::copy(key, key + page_schema.key_size, page_schema.page_buffer + pos);
@@ -121,16 +103,15 @@ size_t insertNonFullPage(size_t page_id, char *key, char *value, bool unique)
     }
     else
     {
-        size_t child_page_id = -1;
         if (pos == kOffsetOfPageHeader)
         {
             std::copy(key, key + page_schema.key_size, page_schema.page_buffer + kOffsetOfPageHeader);
-            child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader + page_schema.key_size);
+            file_system.write(page_id, page_schema.page_ptr);
+            page_schema = getPageSchema(page_id);
+            pos += page_schema.key_size + page_schema.value_size;
         }
-        else
-        {
-            child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size);
-        }
+        size_t child_page_id = -1;
+        child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size);
         PageSchema child_page_schema = getPageSchema(child_page_id);
         if (pageIsFull(child_page_schema))
         {
@@ -138,10 +119,12 @@ size_t insertNonFullPage(size_t page_id, char *key, char *value, bool unique)
             size_t right_child_page_id = splitFullPage(child_page_id, middle_key);
             std::copy_backward(page_schema.page_buffer + pos, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + page_schema.total_size + page_schema.key_size + page_schema.value_size);
             std::copy(middle_key, middle_key + page_schema.key_size, page_schema.page_buffer + pos);
-            std::copy(reinterpret_cast<const char *>(&child_page_id), reinterpret_cast<const char *>(child_page_id) + kSizeOfSizeT, page_schema.page_buffer + pos - page_schema.value_size);
-            std::copy(reinterpret_cast<const char *>(&right_child_page_id), reinterpret_cast<const char *>(right_child_page_id) + kSizeOfSizeT, page_schema.page_buffer + pos + page_schema.key_size);
+            std::copy(reinterpret_cast<const char *>(&child_page_id), reinterpret_cast<const char *>(&child_page_id) + kSizeOfSizeT, page_schema.page_buffer + pos - page_schema.value_size);
+            std::copy(reinterpret_cast<const char *>(&right_child_page_id), reinterpret_cast<const char *>(&right_child_page_id) + kSizeOfSizeT, page_schema.page_buffer + pos + page_schema.key_size);
+            ++page_schema.size;
+            std::copy(reinterpret_cast<const char *>(&page_schema.size), reinterpret_cast<const char *>(&page_schema.size) + kSizeOfSizeT, page_schema.page_buffer + kOffsetOfSize);
             file_system.write(page_id, page_schema.page_ptr);
-            if (std::memcmp(key, middle_key, page_schema.key_size) < 0)
+            if (page_schema.compare(key, middle_key, page_schema.key_size) < 0)
                 return insertNonFullPage(child_page_id, key, value, unique);
             else
                 return insertNonFullPage(right_child_page_id, key, value, unique);
@@ -158,21 +141,43 @@ size_t splitFullPage(size_t page_id, char *middle_key)
     FileSystem &file_system = FileSystem::getInstance();
     PageSchema page_schema = getPageSchema(page_id);
     size_t middle = page_schema.size / 2;
-    size_t pos = kOffsetOfPageHeader + page_schema.value_size + middle * (page_schema.key_size + page_schema.value_size);
+    size_t pos = kOffsetOfPageHeader + middle * (page_schema.key_size + page_schema.value_size);
     std::copy(page_schema.page_buffer + pos, page_schema.page_buffer + pos + page_schema.key_size, middle_key);
-    PageSchema new_right_page_schema(page_schema.leaf, page_schema.leaf ? page_schema.size - middle : page_schema.size - 1 - middle, page_schema.page_id, page_schema.right_page_id, page_schema.key_size, page_schema.index_size, page_schema.value_size);
+    PageSchema new_right_page_schema(page_schema.leaf, page_schema.size - middle, page_schema.page_id, page_schema.right_page_id, page_schema.key_size, page_schema.index_size, page_schema.value_size, page_schema.cmp);
     size_t new_right_page_id = createNewPage(new_right_page_schema);
-    if (page_schema.leaf)
-        std::copy(page_schema.page_buffer + pos, page_schema.page_buffer + page_schema.total_size, new_right_page_schema.page_buffer + kOffsetOfPageHeader + new_right_page_schema.value_size);
-    else
-        std::copy(page_schema.page_buffer + pos + page_schema.key_size, page_schema.page_buffer + page_schema.total_size, new_right_page_schema.page_buffer + kOffsetOfPageHeader);
-
-    std::copy(reinterpret_cast<const char *>(&middle), reinterpret_cast<const char *>(&middle) + page_schema.key_size, middle_key);
+    new_right_page_schema = getPageSchema(new_right_page_id);
+    std::copy(page_schema.page_buffer + pos, page_schema.page_buffer + page_schema.total_size, new_right_page_schema.page_buffer + kOffsetOfPageHeader);
+    std::copy(reinterpret_cast<const char *>(&middle), reinterpret_cast<const char *>(&middle) + kSizeOfSizeT, page_schema.page_buffer + kOffsetOfSize);
     std::copy(reinterpret_cast<const char *>(&new_right_page_id), reinterpret_cast<const char *>(&new_right_page_id) + kSizeOfSizeT, page_schema.page_buffer + kOffsetOfRightPageId);
-
     file_system.write(page_id, page_schema.page_ptr);
     file_system.write(new_right_page_id, new_right_page_schema.page_ptr);
     return new_right_page_id;
+}
+
+char *BPlusTreeSearch(size_t page_id, char *key, bool is_index)
+{
+    PageSchema page_schema = getPageSchema(page_id);
+    size_t pos = kOffsetOfPageHeader;
+    size_t compare_size = is_index ? page_schema.index_size : page_schema.key_size;
+    while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, compare_size) >= 0)
+        pos += page_schema.key_size + page_schema.value_size;
+    if (page_schema.leaf)
+    {
+        if (pos > kOffsetOfPageHeader && page_schema.compare(key, page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size, compare_size) == 0)
+            return page_schema.page_buffer + pos - page_schema.key_size - page_schema.value_size;
+        else
+            return nullptr;
+    }
+    else
+    {
+        if (pos == kOffsetOfPageHeader)
+            return nullptr;
+        else
+        {
+            size_t child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size);
+            return BPlusTreeSearch(child_page_id, key, is_index);
+        }
+    }
 }
 
 Iterator BPlusTreeSelect(size_t page_id, char *begin_key, char *end_key, bool is_index)
@@ -182,46 +187,79 @@ Iterator BPlusTreeSelect(size_t page_id, char *begin_key, char *end_key, bool is
         left = -1;
     if (end_key == nullptr)
         right = 1;
-    size_t begin_page_id = BPlusTreeTraverse(page_id, begin_key, false, left, is_index);
-    size_t end_page_id = BPlusTreeTraverse(page_id, end_key, true, right, is_index);
-    return Iterator(begin_page_id, end_page_id);
+    size_t begin_pos = kOffsetOfPageHeader;
+    size_t end_pos = kOffsetOfPageHeader;
+    size_t begin_id = BPlusTreeTraverse(page_id, begin_key, false, left, is_index, &begin_pos);
+    size_t end_id = BPlusTreeTraverse(page_id, end_key, true, right, is_index, &end_pos);
+    return Iterator({begin_id, begin_pos}, {end_id, end_pos});
 }
 
-size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is_index)
+size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is_index, size_t *pos_ptr)
 {
-    if (side == 1)
+    if (page_id == -1 || side == 1)
         return -1;
     PageSchema page_schema = getPageSchema(page_id);
     size_t compare_size = is_index ? page_schema.index_size : page_schema.key_size;
+    size_t pos = kOffsetOfPageHeader;
     if (page_schema.size == 0)
         return -1;
     else
     {
         if (page_schema.leaf)
         {
-            if (!next)
-                return page_schema.page_id;
-            else if (std::memcmp(key, page_schema.page_buffer + kOffsetOfPageHeader + (page_schema.size - 1) * (page_schema.key_size + page_schema.value_size), compare_size) < 0)
-                return page_schema.right_page_id;
-            else if (page_schema.right_page_id == -1)
-                return -1;
+            if (side == -1)
+                return page_id;
+            if (next)
+            {
+                while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, compare_size) >= 0)
+                    pos += page_schema.key_size + page_schema.value_size;
+                if (pos >= page_schema.total_size)
+                    return BPlusTreeTraverse(page_schema.right_page_id, key, next, side, is_index, pos_ptr);
+                else
+                {
+                    *pos_ptr = pos;
+                    return page_id;
+                }
+            }
             else
-                return BPlusTreeTraverse(page_schema.right_page_id, key, next, side, is_index);
+            {
+                while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, compare_size) > 0)
+                    pos += page_schema.key_size + page_schema.value_size;
+                if (pos >= page_schema.total_size)
+                    return BPlusTreeTraverse(page_schema.right_page_id, key, next, side, is_index, pos_ptr);
+                else
+                {
+                    *pos_ptr = pos;
+                    return page_id;
+                }
+            }
         }
         else
         {
             if (side == -1)
-                return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader), key, next, side, is_index);
-            size_t pos = kOffsetOfPageHeader;
-            while (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, compare_size) > 0)
-                pos += page_schema.value_size + page_schema.key_size;
-            if (pos == page_schema.total_size)
-                return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + page_schema.total_size - page_schema.value_size), key, next, side, is_index);
-            if (std::memcmp(key, page_schema.page_buffer + pos, compare_size) == 0)
-                return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + pos + page_schema.key_size), key, next, side, is_index);
-            if (pos == kOffsetOfPageHeader)
-                return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader), key, next, side, is_index);
-            return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size), key, next, side, is_index);
+                return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader + page_schema.key_size), key, next, side, is_index, pos_ptr);
+            if (next)
+            {
+                while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, compare_size) >= 0)
+                    pos += page_schema.value_size + page_schema.key_size;
+                if (pos == kOffsetOfPageHeader)
+                    return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader + page_schema.key_size), key, next, side, is_index, pos_ptr);
+                else
+                    return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size), key, next, side, is_index, pos_ptr);
+            }
+            else
+            {
+                while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, compare_size) > 0)
+                    pos += page_schema.value_size + page_schema.key_size;
+                if (pos == page_schema.total_size)
+                    return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + page_schema.total_size - page_schema.value_size), key, next, side, is_index, pos_ptr);
+                else if (page_schema.compare(key, page_schema.page_buffer + pos, compare_size) == 0)
+                    return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + pos + page_schema.key_size), key, next, side, is_index, pos_ptr);
+                else if (pos == kOffsetOfPageHeader)
+                    return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader + page_schema.key_size), key, next, side, is_index, pos_ptr);
+                else
+                    return BPlusTreeTraverse(*reinterpret_cast<const size_t *>(page_schema.page_buffer + pos - page_schema.value_size), key, next, side, is_index, pos_ptr);
+            }
         }
     }
 }
@@ -232,7 +270,7 @@ void BPlusTreeRemove(size_t page_id)
     PageSchema page_schema = getPageSchema(page_id);
     size_t child_page_id = -1;
     if (!page_schema.leaf)
-        child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader);
+        child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfPageHeader + page_schema.key_size);
     size_t right_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + kOffsetOfRightPageId);
     gdbe.addFreePage(page_id);
     while (right_page_id != -1)
@@ -253,11 +291,11 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
     size_t pos = kOffsetOfPageHeader;
     if (page_schema.size == 0)
         return;
-    while (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, page_schema.key_size) > 0)
+    while (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, page_schema.key_size) > 0)
         pos += page_schema.value_size + page_schema.key_size;
     if (page_schema.leaf)
     {
-        if (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, page_schema.key_size) == 0)
+        if (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, page_schema.key_size) == 0)
         {
             std::copy(page_schema.page_buffer + pos + page_schema.value_size + page_schema.key_size, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + pos);
             --page_schema.size;
@@ -267,7 +305,7 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
     }
     else
     {
-        if (pos < page_schema.total_size && std::memcmp(key, page_schema.page_buffer + pos, page_schema.key_size) == 0)
+        if (pos < page_schema.total_size && page_schema.compare(key, page_schema.page_buffer + pos, page_schema.key_size) == 0)
             pos += page_schema.key_size + page_schema.value_size;
         if (pos == kOffsetOfPageHeader)
             return;
@@ -306,7 +344,7 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
             {
                 size_t right_child_pos = kOffsetOfPageHeader;
                 std::copy(right_child_page_schema.page_buffer + right_child_pos, right_child_page_schema.page_buffer + right_child_pos + right_child_page_schema.key_size + right_child_page_schema.value_size, child_page_schema.page_buffer + child_page_schema.total_size);
-                std::copy(right_child_page_schema.page_buffer + right_child_pos + right_child_page_schema.key_size + right_child_page_schema.value_size, right_child_page_schema.page_buffer + right_child_page_schema.total_size, right_child_page_schema.page_buffer + pos);
+                std::copy(right_child_page_schema.page_buffer + right_child_pos + right_child_page_schema.key_size + right_child_page_schema.value_size, right_child_page_schema.page_buffer + right_child_page_schema.total_size, right_child_page_schema.page_buffer + right_child_pos);
                 std::copy(right_child_page_schema.page_buffer + right_child_pos, right_child_page_schema.page_buffer + right_child_pos + right_child_page_schema.key_size, page_schema.page_buffer + child_page_pos + page_schema.value_size);
                 --right_child_page_schema.size;
                 std::copy(reinterpret_cast<const char *>(&right_child_page_schema.size), reinterpret_cast<const char *>(&right_child_page_schema.size) + kSizeOfSizeT, right_child_page_schema.page_buffer + kOffsetOfSize);
@@ -323,6 +361,7 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
             size_t left_child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + left_child_page_pos);
             PageSchema left_child_page_schema = getPageSchema(left_child_page_id);
             std::copy(child_page_schema.page_buffer + kOffsetOfPageHeader, child_page_schema.page_buffer + child_page_schema.total_size, left_child_page_schema.page_buffer + left_child_page_schema.total_size);
+            std::copy(child_page_schema.page_buffer + kOffsetOfRightPageId, child_page_schema.page_buffer + kOffsetOfRightPageId + kSizeOfSizeT, left_child_page_schema.page_buffer + kOffsetOfRightPageId);
             left_child_page_schema.size += child_page_schema.size;
             std::copy(page_schema.page_buffer + child_page_pos + page_schema.value_size, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + child_page_pos - page_schema.key_size);
             --page_schema.size;
@@ -330,11 +369,13 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
             std::copy(reinterpret_cast<const char *>(&page_schema.size), reinterpret_cast<const char *>(&page_schema.size) + kSizeOfSizeT, page_schema.page_buffer + kOffsetOfSize);
             GDBE &gdbe = GDBE::getInstance();
             gdbe.addFreePage(child_page_schema.page_id);
-            if (page_schema.size == 0)
+            if (page_schema.size == 1)
             {
                 gdbe.addFreePage(page_schema.page_id);
                 *root_page_id_ptr = left_child_page_schema.page_id;
             }
+            file_system.write(page_schema.page_id, page_schema.page_ptr);
+            file_system.write(left_child_page_schema.page_id, left_child_page_schema.page_ptr);
             return BPlusTreeDelete(left_child_page_schema.page_id, key, root_page_id_ptr);
         }
         if (right_child_page_pos != -1)
@@ -342,6 +383,7 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
             size_t right_child_page_id = *reinterpret_cast<const size_t *>(page_schema.page_buffer + right_child_page_pos);
             PageSchema right_child_page_schema = getPageSchema(right_child_page_id);
             std::copy(right_child_page_schema.page_buffer + kOffsetOfPageHeader, right_child_page_schema.page_buffer + right_child_page_schema.total_size, child_page_schema.page_buffer + child_page_schema.total_size);
+            std::copy(right_child_page_schema.page_buffer + kOffsetOfRightPageId, right_child_page_schema.page_buffer + kOffsetOfRightPageId + kSizeOfSizeT, child_page_schema.page_buffer + kOffsetOfRightPageId);
             child_page_schema.size += right_child_page_schema.size;
             std::copy(page_schema.page_buffer + child_page_pos + page_schema.value_size * 2 + page_schema.key_size, page_schema.page_buffer + page_schema.total_size, page_schema.page_buffer + child_page_pos + page_schema.value_size);
             --page_schema.size;
@@ -349,11 +391,13 @@ void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id_ptr)
             std::copy(reinterpret_cast<const char *>(&page_schema.size), reinterpret_cast<const char *>(&page_schema.size) + kSizeOfSizeT, page_schema.page_buffer + kOffsetOfSize);
             GDBE &gdbe = GDBE::getInstance();
             gdbe.addFreePage(right_child_page_schema.page_id);
-            if (page_schema.size == 0)
+            if (page_schema.size == 1)
             {
                 gdbe.addFreePage(page_schema.page_id);
                 *root_page_id_ptr = child_page_schema.page_id;
             }
+            file_system.write(page_schema.page_id, page_schema.page_ptr);
+            file_system.write(child_page_schema.page_id, child_page_schema.page_ptr);
             return BPlusTreeDelete(child_page_schema.page_id, key, root_page_id_ptr);
         }
     }

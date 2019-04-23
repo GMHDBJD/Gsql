@@ -12,7 +12,7 @@ size_t BPlusTreeInsert(size_t page_id, char *key, char *value, bool unique, size
 
 void BPlusTreeDelete(size_t page_id, char *key, size_t *root_page_id);
 
-char* BPlusTreeSearch(size_t page_id, char *key, bool is_index);
+char *BPlusTreeSearch(size_t page_id, char *key, bool is_index);
 
 void BPlusTreeRemove(size_t page_id);
 
@@ -26,25 +26,30 @@ PageSchema getPageSchema(size_t page_id);
 
 size_t splitFullPage(size_t page_id, char *middle_key);
 
+bool dataOverFlow(size_t key_size,size_t value_size);
+
 class Iter : public std::iterator<std::random_access_iterator_tag, char *>
 {
     PageSchema page_schema_;
     size_t pos_;
-    bool one_page_;
 
 public:
-    Iter(size_t page_id, bool op = false) : one_page_(op)
+    Iter(std::pair<size_t, size_t> pair)
     {
-        setPage(page_id);
+        setPage(pair);
     }
-    Iter &setPage(size_t page_id)
+    Iter(size_t page_id)
     {
-        if (page_id == -1)
+        setPage({page_id, kOffsetOfPageHeader});
+    }
+    Iter &setPage(std::pair<size_t, size_t> pair)
+    {
+        if (pair.first == -1)
             page_schema_.page_id = -1;
         else
         {
-            page_schema_ = getPageSchema(page_id);
-            pos_ = kOffsetOfPageHeader;
+            page_schema_ = getPageSchema(pair.first);
+            pos_ = pair.second;
         }
         return *this;
     }
@@ -58,10 +63,9 @@ public:
         {
             pos_ += page_schema_.key_size + page_schema_.value_size;
             if (pos_ >= page_schema_.total_size)
-                if (one_page_)
-                    setPage(-1);
-                else
-                    setPage(page_schema_.right_page_id);
+            {
+                setPage({page_schema_.right_page_id, kOffsetOfPageHeader});
+            }
         }
         return *this;
     }
@@ -97,23 +101,21 @@ class Iterator
 public:
     Iter begin()
     {
-        return Iter(begin_page_id_, one_page);
+        return Iter(begin_pair_);
     }
     Iter end()
     {
-        return Iter(end_page_id_, one_page);
+        return Iter(end_pair_);
     }
 
-    Iterator(size_t begin_page_id, size_t end_page_id) : begin_page_id_(begin_page_id), end_page_id_(end_page_id), one_page(false) {}
-    Iterator(size_t page) : begin_page_id_(page), end_page_id_(-1), one_page(true) {}
+    Iterator(std::pair<size_t, size_t> begin_pair, std::pair<size_t, size_t> end_pair) : begin_pair_(begin_pair), end_pair_(end_pair){}
 
 private:
-    size_t begin_page_id_;
-    size_t end_page_id_;
-    bool one_page;
+    std::pair<size_t, size_t> begin_pair_;
+    std::pair<size_t, size_t> end_pair_;
 };
 
-size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is_index);
+size_t BPlusTreeTraverse(size_t page_id, char *key, bool next, int side, bool is_index, size_t *pos_ptr);
 
 Iterator BPlusTreeSelect(size_t page_id, char *begin_key, char *end_key, bool is_index);
 #endif

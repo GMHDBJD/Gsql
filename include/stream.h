@@ -84,6 +84,7 @@ public:
   }
   void setBuffer(std::vector<PagePtr> page_ptr_vector)
   {
+    buffer_vector_.clear();
     for (auto &&i : page_ptr_vector)
     {
       buffer_vector_.push_back(i->buffer);
@@ -111,14 +112,14 @@ Stream &operator<<(Stream &stream, const T &data)
   size_t capacy = kPageSize - stream.vector_pos_;
   while (data_size > capacy)
   {
-    std::copy(reinterpret_cast<const char *>(&data + current_copy_size), reinterpret_cast<const char *>(&data + current_copy_size + capacy), stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_);
+    std::copy(reinterpret_cast<const char *>(&data) + current_copy_size, reinterpret_cast<const char *>(&data) + current_copy_size + capacy, stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_);
     stream.total_pos_ += capacy;
     data_size -= capacy;
     stream.vector_pos_ = 0;
     ++stream.vector_index_;
     capacy = kPageSize;
   }
-  std::copy(reinterpret_cast<const char *>(&data + current_copy_size), reinterpret_cast<const char *>(&data + current_copy_size + data_size), stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_);
+  std::copy(reinterpret_cast<const char *>(&data) + current_copy_size, reinterpret_cast<const char *>(&data) + current_copy_size + data_size, stream.buffer_vector_[stream.vector_index_] + stream.vector_pos_);
   stream.total_pos_ += data_size;
   stream.vector_pos_ += data_size;
   return stream;

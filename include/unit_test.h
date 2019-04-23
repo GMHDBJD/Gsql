@@ -123,7 +123,7 @@ public:
 
         fout.close();
     }
-};
+}; // namespace unittest
 } // namespace unittest
 
 #endif
