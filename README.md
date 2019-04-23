@@ -56,4 +56,3 @@ To fix a bug or enhance an existing module, follow these steps:
 # Bug / Feature Request
 If you find a bug, kindly open an issue here by including your data.
 
-# demo
