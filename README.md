@@ -4,8 +4,8 @@ my database manage system
 
 
 # what you should know
-- not safety
-- not efficiency
+- no safety
+- no efficiency
 - not stable
 - not reliable
 - may be some bugs
