@@ -2,6 +2,16 @@
 
 my database manage system
 
+![](screenshot/show.gif)
+
+# Implement
+- Lexer
+- Recursive descent parser
+- Serializer
+- B Plus Tree
+- Memory Pools
+- LRU
+- File System
 
 # what you should know
 - no safety
