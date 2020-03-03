@@ -9,7 +9,7 @@ SOURCES = $(SRCDIR)*.cpp\
 all: Gsql
 
 Gsql: $(SOURCES)
-	$(CC) $(SOURCES) $(CFLAGS) -o $@ -lstdc++fs -lreadline
+	$(CC) $(SOURCES) $(CFLAGS) -O -o $@ -lstdc++fs -lreadline
 
 run:
 	./Gsql
